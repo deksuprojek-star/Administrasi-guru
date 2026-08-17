@@ -19,8 +19,10 @@ import {
   GraduationCap,
   Layers,
   ChevronDown,
+  Plus,
+  X,
 } from 'lucide-react';
-import { GuruProfile, UserAccount, Kelas } from '../types';
+import { GuruProfile, UserAccount, Kelas, MataPelajaran } from '../types';
 import { apiService } from '../services/apiService';
 
 interface ProfilGuruViewProps {
@@ -39,6 +41,10 @@ export const ProfilGuruView: React.FC<ProfilGuruViewProps> = ({
   const [teacherList, setTeacherList] = useState<GuruProfile[]>([]);
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>(guruProfile?.guru_id || '');
   const [kelasList, setKelasList] = useState<Kelas[]>([]);
+  const [mapelList, setMapelList] = useState<MataPelajaran[]>([]);
+  const [isAddingNewKelas, setIsAddingNewKelas] = useState(false);
+  const [newKelasNama, setNewKelasNama] = useState('');
+  const [newKelasTingkat, setNewKelasTingkat] = useState<'X' | 'XI' | 'XII'>('X');
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -49,12 +55,14 @@ export const ProfilGuruView: React.FC<ProfilGuruViewProps> = ({
 
   const loadData = async () => {
     try {
-      const [profiles, classes] = await Promise.all([
+      const [profiles, classes, mapels] = await Promise.all([
         apiService.getGuruProfileList(),
         apiService.getKelasList(),
+        apiService.getMapelList(),
       ]);
       setTeacherList(profiles);
       setKelasList(classes);
+      setMapelList(mapels);
 
       if (isAdmin) {
         // Admin default to the first teacher or current profile
@@ -71,6 +79,28 @@ export const ProfilGuruView: React.FC<ProfilGuruViewProps> = ({
       }
     } catch (e) {
       console.error('Error loading teacher data:', e);
+    }
+  };
+
+  const handleCreateCustomKelas = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newKelasNama.trim()) return;
+
+    try {
+      const created = await apiService.ensureKelasExists(newKelasNama.trim(), newKelasTingkat);
+      const updatedClasses = await apiService.getKelasList();
+      setKelasList(updatedClasses);
+
+      // Auto-select for current teacher
+      const current = formData.kelas_diampu || [];
+      if (!current.includes(created.kelas_id)) {
+        setFormData((prev) => ({ ...prev, kelas_diampu: [...current, created.kelas_id] }));
+      }
+      setNewKelasNama('');
+      setIsAddingNewKelas(false);
+      setSaveStatus({ type: 'success', message: `Kelas "${created.nama_kelas}" berhasil ditambahkan dan dipilih!` });
+    } catch (err: any) {
+      setSaveStatus({ type: 'error', message: err.message || 'Gagal menambahkan kelas baru' });
     }
   };
 
@@ -348,9 +378,12 @@ export const ProfilGuruView: React.FC<ProfilGuruViewProps> = ({
 
             {/* Mata Pelajaran Utama */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                Mata Pelajaran Utama Diampu *
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-semibold text-slate-700">
+                  Mata Pelajaran Utama Diampu *
+                </label>
+                <span className="text-[11px] text-teal-700 font-medium">Bisa ketik nama mapel baru</span>
+              </div>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                   <BookOpen className="w-4 h-4" />
@@ -358,11 +391,19 @@ export const ProfilGuruView: React.FC<ProfilGuruViewProps> = ({
                 <input
                   type="text"
                   required
+                  list="mapel-options"
                   value={formData.mata_pelajaran || ''}
                   onChange={(e) => handleChange('mata_pelajaran', e.target.value)}
-                  placeholder="Matematika / IPA / Bahasa Indonesia"
+                  placeholder="Ketik atau pilih nama mata pelajaran..."
                   className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm rounded-lg border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-teal-500 font-medium"
                 />
+                <datalist id="mapel-options">
+                  {mapelList.map((m) => (
+                    <option key={m.mapel_id} value={m.nama_mapel}>
+                      {m.nama_mapel} ({m.kode_mapel})
+                    </option>
+                  ))}
+                </datalist>
               </div>
             </div>
 
@@ -404,20 +445,72 @@ export const ProfilGuruView: React.FC<ProfilGuruViewProps> = ({
               </div>
             </div>
 
-            {/* Kelas yang Diampu (Checkbox / Chips) */}
+            {/* Kelas yang Diampu (Checkbox / Chips + Tambah Kelas Baru) */}
             <div className="sm:col-span-2 space-y-2 p-4 rounded-xl bg-slate-50 border border-slate-200">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                   <Layers className="w-4 h-4 text-teal-600" />
                   <span>Daftar Kelas yang Diampu Guru:</span>
                 </label>
-                <span className="text-[11px] text-slate-500">
-                  {(formData.kelas_diampu || []).length} kelas dipilih
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-slate-500">
+                    {(formData.kelas_diampu || []).length} kelas dipilih
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingNewKelas(!isAddingNewKelas)}
+                    className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 bg-teal-50 text-teal-700 hover:bg-teal-100 rounded-md border border-teal-200 transition-colors"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>Tambah Kelas Baru</span>
+                  </button>
+                </div>
               </div>
               <p className="text-[11px] text-slate-500">
                 Centang kelas yang diajar oleh guru ini untuk memfilter data siswa, jadwal, presensi, dan penilaian.
               </p>
+
+              {/* Inline Add New Class Form */}
+              {isAddingNewKelas && (
+                <div className="p-3 bg-white rounded-lg border border-teal-300 shadow-xs space-y-2 mb-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-800">Tambahkan Kelas yang Belum Tersedia:</span>
+                    <button
+                      type="button"
+                      onClick={() => setIsAddingNewKelas(false)}
+                      className="text-slate-400 hover:text-slate-600"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <input
+                      type="text"
+                      value={newKelasNama}
+                      onChange={(e) => setNewKelasNama(e.target.value)}
+                      placeholder="Nama Kelas (misal: X E, XI 4)"
+                      className="px-2.5 py-1.5 text-xs border rounded-md focus:ring-2 focus:ring-teal-500 font-medium"
+                    />
+                    <select
+                      value={newKelasTingkat}
+                      onChange={(e) => setNewKelasTingkat(e.target.value as any)}
+                      className="px-2.5 py-1.5 text-xs border rounded-md font-medium"
+                    >
+                      <option value="X">Tingkat X</option>
+                      <option value="XI">Tingkat XI</option>
+                      <option value="XII">Tingkat XII</option>
+                    </select>
+                    <button
+                      type="button"
+                      onClick={handleCreateCustomKelas}
+                      className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold rounded-md shadow-2xs"
+                    >
+                      + Simpan & Pilih Kelas
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="flex flex-wrap gap-2 pt-1">
                 {kelasList.map((k) => {
                   const isChecked = (formData.kelas_diampu || []).includes(k.kelas_id) || (formData.kelas_diampu || []).includes(k.nama_kelas);

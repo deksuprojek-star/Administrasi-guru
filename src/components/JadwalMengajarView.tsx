@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Check,
+  X,
 } from 'lucide-react';
 import { JadwalMengajar, Kelas, MataPelajaran } from '../types';
 import { apiService } from '../services/apiService';
@@ -34,8 +35,13 @@ export const JadwalMengajarView: React.FC = () => {
   // Form State
   const [formHari, setFormHari] = useState<typeof DAYS[number]>('Senin');
   const [formKelasId, setFormKelasId] = useState<string>('');
-  const [formMapelId, setFormMapelId] = useState<string>('');
+  const [formMapelName, setFormMapelName] = useState<string>('');
   const [selectedJamKe, setSelectedJamKe] = useState<number[]>([1, 2]);
+
+  // Quick Inline Add Class
+  const [isAddingClassInline, setIsAddingClassInline] = useState(false);
+  const [newClassName, setNewClassName] = useState('');
+  const [newClassTingkat, setNewClassTingkat] = useState<'X' | 'XI' | 'XII'>('X');
 
   useEffect(() => {
     loadData();
@@ -47,12 +53,11 @@ export const JadwalMengajarView: React.FC = () => {
       apiService.getKelasList(),
       apiService.getMapelList(),
     ]);
-    // Filter out Saturday if any existing legacy record had it
     setJadwalList(j.filter((item) => item.hari !== ('Sabtu' as any)));
     setKelasList(k);
     setMapelList(m);
     if (k.length > 0 && !formKelasId) setFormKelasId(k[0].kelas_id);
-    if (m.length > 0 && !formMapelId) setFormMapelId(m[0].mapel_id);
+    if (m.length > 0 && !formMapelName) setFormMapelName(m[0].nama_mapel);
   };
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
@@ -64,8 +69,9 @@ export const JadwalMengajarView: React.FC = () => {
     setEditingId(null);
     setFormHari('Senin');
     setFormKelasId(kelasList[0]?.kelas_id || '');
-    setFormMapelId(mapelList[0]?.mapel_id || '');
+    setFormMapelName(mapelList[0]?.nama_mapel || '');
     setSelectedJamKe([1, 2]);
+    setIsAddingClassInline(false);
     setIsModalOpen(true);
   };
 
@@ -73,10 +79,27 @@ export const JadwalMengajarView: React.FC = () => {
     setEditingId(item.jadwal_id);
     setFormHari(DAYS.includes(item.hari as any) ? (item.hari as any) : 'Senin');
     setFormKelasId(item.kelas_id);
-    setFormMapelId(item.mapel_id);
+    const existingMapel = mapelList.find((m) => m.mapel_id === item.mapel_id);
+    setFormMapelName(existingMapel ? existingMapel.nama_mapel : item.mapel_id);
     const periods = item.jam_ke.split(',').map((p) => Number(p.trim())).filter(Boolean);
     setSelectedJamKe(periods.length ? periods : [1]);
+    setIsAddingClassInline(false);
     setIsModalOpen(true);
+  };
+
+  const handleQuickAddClass = async () => {
+    if (!newClassName.trim()) return;
+    try {
+      const created = await apiService.ensureKelasExists(newClassName.trim(), newClassTingkat);
+      const updatedClasses = await apiService.getKelasList();
+      setKelasList(updatedClasses);
+      setFormKelasId(created.kelas_id);
+      setNewClassName('');
+      setIsAddingClassInline(false);
+      showToast(`Kelas ${created.nama_kelas} berhasil ditambahkan!`);
+    } catch (err: any) {
+      showToast(err.message || 'Gagal menambahkan kelas', 'error');
+    }
   };
 
   const toggleJamKe = (num: number) => {
@@ -90,18 +113,22 @@ export const JadwalMengajarView: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formKelasId || !formMapelId || selectedJamKe.length === 0) {
+    if (!formKelasId || !formMapelName.trim() || selectedJamKe.length === 0) {
       showToast('Mohon lengkapi semua kolom isian jadwal', 'error');
       return;
     }
+
+    // Ensure mapel exists (allows typing custom unlisted subject)
+    const mapelObj = await apiService.ensureMapelExists(formMapelName.trim());
+    const currentUser = apiService.getCurrentUser();
 
     const payload: JadwalMengajar = {
       jadwal_id: editingId || `JDW-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
       hari: formHari,
       kelas_id: formKelasId,
-      mapel_id: formMapelId,
+      mapel_id: mapelObj.mapel_id,
       jam_ke: selectedJamKe.join(','),
-      guru_id: 'GURU-001',
+      guru_id: currentUser?.guru_id || 'GURU-001',
     };
 
     const res = await apiService.saveJadwal(payload);
@@ -301,9 +328,57 @@ export const JadwalMengajarView: React.FC = () => {
               </div>
 
               {/* Kelas & Mapel */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-3">
+                {/* Kelas Field */}
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Kelas *</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block font-semibold text-slate-700">Kelas *</label>
+                    <button
+                      type="button"
+                      onClick={() => setIsAddingClassInline(!isAddingClassInline)}
+                      className="text-[11px] font-semibold text-teal-700 hover:text-teal-800 inline-flex items-center gap-0.5"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>{isAddingClassInline ? 'Tutup' : 'Tambah Kelas Baru'}</span>
+                    </button>
+                  </div>
+
+                  {isAddingClassInline && (
+                    <div className="p-2.5 bg-teal-50/70 border border-teal-200 rounded-lg mb-2 space-y-2">
+                      <div className="text-[11px] font-bold text-teal-900 flex items-center justify-between">
+                        <span>Tambah Kelas Cepat</span>
+                        <button type="button" onClick={() => setIsAddingClassInline(false)} className="text-slate-400 hover:text-slate-600">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
+                        <input
+                          type="text"
+                          value={newClassName}
+                          onChange={(e) => setNewClassName(e.target.value)}
+                          placeholder="Nama (misal: X 4)"
+                          className="px-2 py-1 bg-white border rounded text-xs"
+                        />
+                        <select
+                          value={newClassTingkat}
+                          onChange={(e) => setNewClassTingkat(e.target.value as any)}
+                          className="px-2 py-1 bg-white border rounded text-xs font-medium"
+                        >
+                          <option value="X">Tingkat X</option>
+                          <option value="XI">Tingkat XI</option>
+                          <option value="XII">Tingkat XII</option>
+                        </select>
+                        <button
+                          type="button"
+                          onClick={handleQuickAddClass}
+                          className="px-2 py-1 bg-teal-600 hover:bg-teal-700 text-white rounded text-xs font-semibold"
+                        >
+                          + Tambah
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   <select
                     value={formKelasId}
                     onChange={(e) => setFormKelasId(e.target.value)}
@@ -311,24 +386,36 @@ export const JadwalMengajarView: React.FC = () => {
                   >
                     {kelasList.map((k) => (
                       <option key={k.kelas_id} value={k.kelas_id}>
-                        Kelas {k.nama_kelas}
+                        Kelas {k.nama_kelas} (Tingkat {k.tingkat})
                       </option>
                     ))}
                   </select>
                 </div>
+
+                {/* Mapel Field (Free text with suggestions) */}
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Mata Pelajaran *</label>
-                  <select
-                    value={formMapelId}
-                    onChange={(e) => setFormMapelId(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500 font-medium"
-                  >
-                    {mapelList.map((m) => (
-                      <option key={m.mapel_id} value={m.mapel_id}>
-                        {m.nama_mapel}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block font-semibold text-slate-700">Mata Pelajaran *</label>
+                    <span className="text-[11px] text-teal-700">Bisa ketik nama mapel lain</span>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      list="jadwal-mapel-list"
+                      value={formMapelName}
+                      onChange={(e) => setFormMapelName(e.target.value)}
+                      placeholder="Pilih atau ketik mata pelajaran..."
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500 font-medium"
+                    />
+                    <datalist id="jadwal-mapel-list">
+                      {mapelList.map((m) => (
+                        <option key={m.mapel_id} value={m.nama_mapel}>
+                          {m.nama_mapel} ({m.kode_mapel})
+                        </option>
+                      ))}
+                    </datalist>
+                  </div>
                 </div>
               </div>
 

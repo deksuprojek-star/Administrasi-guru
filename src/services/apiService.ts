@@ -34,6 +34,7 @@ import {
   initialBimbinganList,
   initialLogList,
 } from '../data/initialData';
+import { sortKelasList, getTingkatOrder } from '../utils/classSort';
 
 const STORAGE_KEYS = {
   GAS_URL: 'SAG_GAS_WEBAPP_URL',
@@ -124,9 +125,9 @@ class ApiService {
   }
 
   private initLocalStorage() {
-    const CLEAN_VERSION_KEY = 'SAG_CLEAN_DATA_STATE_V4';
+    const CLEAN_VERSION_KEY = 'SAG_CLEAN_DATA_STATE_V5';
     if (!localStorage.getItem(CLEAN_VERSION_KEY)) {
-      // Clear legacy dummy transaction records so tables are clean and ready for real use
+      // Clear legacy dummy transaction records and initialize with clean SMA X, XI, XII data
       localStorage.setItem(STORAGE_KEYS.ABSENSI, JSON.stringify([]));
       localStorage.setItem(STORAGE_KEYS.JURNAL, JSON.stringify([]));
       localStorage.setItem(STORAGE_KEYS.PENILAIAN, JSON.stringify([]));
@@ -500,8 +501,9 @@ class ApiService {
   public async getKelasList(): Promise<Kelas[]> {
     const raw = localStorage.getItem(STORAGE_KEYS.KELAS);
     const classes: Kelas[] = raw ? JSON.parse(raw) : initialKelasList;
+    const sorted = sortKelasList(classes);
     const students: Siswa[] = await this.getSiswaList();
-    return classes.map((k) => ({
+    return sorted.map((k) => ({
       ...k,
       jumlah_siswa: students.filter((s) => s.kelas_id === k.kelas_id && s.status === 'Aktif').length,
     }));
@@ -509,20 +511,89 @@ class ApiService {
 
   public async saveKelas(kelas: Kelas): Promise<ApiResponse> {
     const list = await this.getKelasList();
-    const idx = list.findIndex((k) => k.kelas_id === kelas.kelas_id);
-    if (idx >= 0) {
-      list[idx] = kelas;
-    } else {
-      list.push(kelas);
+    
+    // Infer tingkat if empty
+    let tingkat = kelas.tingkat;
+    if (!tingkat) {
+      const upper = (kelas.nama_kelas || '').toUpperCase().trim();
+      if (upper.startsWith('XII')) tingkat = 'XII';
+      else if (upper.startsWith('XI')) tingkat = 'XI';
+      else if (upper.startsWith('X')) tingkat = 'X';
+      else tingkat = 'X';
     }
-    localStorage.setItem(STORAGE_KEYS.KELAS, JSON.stringify(list));
-    this.addLog('SAVE_KELAS', 'MASTER_DATA', `Menyimpan data kelas ${kelas.nama_kelas}`, kelas.kelas_id);
-    return { success: true, message: `Kelas ${kelas.nama_kelas} berhasil disimpan!` };
+
+    const payload: Kelas = {
+      ...kelas,
+      tingkat,
+      nama_kelas: kelas.nama_kelas.trim(),
+    };
+
+    const idx = list.findIndex((k) => k.kelas_id === payload.kelas_id);
+    if (idx >= 0) {
+      list[idx] = payload;
+    } else {
+      list.push(payload);
+    }
+    const sorted = sortKelasList(list);
+    localStorage.setItem(STORAGE_KEYS.KELAS, JSON.stringify(sorted));
+
+    // Update students cached class name if renamed
+    try {
+      const rawSiswa = localStorage.getItem(STORAGE_KEYS.SISWA);
+      if (rawSiswa) {
+        const students: Siswa[] = JSON.parse(rawSiswa);
+        let updated = false;
+        const mappedStudents = students.map((s) => {
+          if (s.kelas_id === payload.kelas_id && s.nama_kelas !== payload.nama_kelas) {
+            updated = true;
+            return { ...s, nama_kelas: payload.nama_kelas };
+          }
+          return s;
+        });
+        if (updated) {
+          localStorage.setItem(STORAGE_KEYS.SISWA, JSON.stringify(mappedStudents));
+        }
+      }
+    } catch (e) {
+      console.warn('Error updating student class name cache', e);
+    }
+
+    this.addLog('SAVE_KELAS', 'MASTER_DATA', `Menyimpan data kelas ${payload.nama_kelas} (Tingkat ${payload.tingkat})`, payload.kelas_id);
+    return { success: true, message: `Kelas ${payload.nama_kelas} berhasil disimpan!` };
+  }
+
+  public async ensureKelasExists(namaKelas: string, tingkatInput?: string): Promise<Kelas> {
+    const trimmed = namaKelas.trim();
+    if (!trimmed) throw new Error('Nama kelas tidak boleh kosong');
+
+    const list = await this.getKelasList();
+    const existing = list.find((k) => k.nama_kelas.toLowerCase() === trimmed.toLowerCase());
+    if (existing) return existing;
+
+    let tingkat = tingkatInput;
+    if (!tingkat) {
+      const upper = trimmed.toUpperCase();
+      if (upper.startsWith('XII')) tingkat = 'XII';
+      else if (upper.startsWith('XI')) tingkat = 'XI';
+      else if (upper.startsWith('X')) tingkat = 'X';
+      else tingkat = 'X';
+    }
+
+    const newKelas: Kelas = {
+      kelas_id: `KLS-${trimmed.toUpperCase().replace(/[^A-Z0-9]/g, '')}`,
+      nama_kelas: trimmed,
+      tingkat: tingkat || 'X',
+      tahun_ajaran: '2026/2027',
+      jumlah_siswa: 0,
+    };
+
+    await this.saveKelas(newKelas);
+    return newKelas;
   }
 
   public async deleteKelas(kelasId: string): Promise<ApiResponse> {
     const list = (await this.getKelasList()).filter((k) => k.kelas_id !== kelasId);
-    localStorage.setItem(STORAGE_KEYS.KELAS, JSON.stringify(list));
+    localStorage.setItem(STORAGE_KEYS.KELAS, JSON.stringify(sortKelasList(list)));
     this.addLog('DELETE_KELAS', 'MASTER_DATA', `Menghapus data kelas ${kelasId}`, kelasId);
     return { success: true, message: 'Kelas berhasil dihapus!' };
   }
@@ -534,15 +605,52 @@ class ApiService {
 
   public async saveMapel(mapel: MataPelajaran): Promise<ApiResponse> {
     const list = await this.getMapelList();
-    const idx = list.findIndex((m) => m.mapel_id === mapel.mapel_id);
+    const payload: MataPelajaran = {
+      ...mapel,
+      kode_mapel: mapel.kode_mapel.toUpperCase().trim(),
+      nama_mapel: mapel.nama_mapel.trim(),
+      tingkat: mapel.tingkat || 'X, XI, XII',
+      kkm_default: Number(mapel.kkm_default) || 75,
+    };
+
+    const idx = list.findIndex((m) => m.mapel_id === payload.mapel_id);
     if (idx >= 0) {
-      list[idx] = mapel;
+      list[idx] = payload;
     } else {
-      list.push(mapel);
+      list.push(payload);
     }
     localStorage.setItem(STORAGE_KEYS.MAPEL, JSON.stringify(list));
-    this.addLog('SAVE_MAPEL', 'MASTER_DATA', `Menyimpan mata pelajaran ${mapel.nama_mapel}`, mapel.mapel_id);
-    return { success: true, message: `Mata pelajaran ${mapel.nama_mapel} berhasil disimpan!` };
+    this.addLog('SAVE_MAPEL', 'MASTER_DATA', `Menyimpan mata pelajaran ${payload.nama_mapel}`, payload.mapel_id);
+    return { success: true, message: `Mata pelajaran ${payload.nama_mapel} berhasil disimpan!` };
+  }
+
+  public async ensureMapelExists(namaMapel: string, tingkat: string = 'X, XI, XII'): Promise<MataPelajaran> {
+    const trimmed = namaMapel.trim();
+    if (!trimmed) throw new Error('Nama mata pelajaran tidak boleh kosong');
+
+    const list = await this.getMapelList();
+    const existing = list.find((m) => m.nama_mapel.toLowerCase() === trimmed.toLowerCase());
+    if (existing) return existing;
+
+    // Generate clean code from name (e.g. "Prakarya dan Kewirausahaan" -> "PKWU" or "MAT")
+    const words = trimmed.split(/\s+/).filter(Boolean);
+    let kode = '';
+    if (words.length >= 2) {
+      kode = words.map((w) => w[0]).join('').toUpperCase().substring(0, 5);
+    } else {
+      kode = trimmed.substring(0, 3).toUpperCase();
+    }
+
+    const newMapel: MataPelajaran = {
+      mapel_id: `MP-${kode}-${Math.random().toString(36).substring(2, 5).toUpperCase()}`,
+      kode_mapel: kode,
+      nama_mapel: trimmed,
+      tingkat: tingkat || 'X, XI, XII',
+      kkm_default: 75,
+    };
+
+    await this.saveMapel(newMapel);
+    return newMapel;
   }
 
   public async deleteMapel(mapelId: string): Promise<ApiResponse> {

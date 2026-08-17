@@ -75,65 +75,37 @@ export const initialKonfigurasiSekolah: KonfigurasiSekolah = {
 };
 
 export const initialKelasList: Kelas[] = [
-  {
-    kelas_id: 'KLS-10A',
-    nama_kelas: 'X A',
-    tingkat: 'X',
-    tahun_ajaran: '2026/2027',
-    jumlah_siswa: 0,
-  },
-  {
-    kelas_id: 'KLS-10B',
-    nama_kelas: 'X B',
-    tingkat: 'X',
-    tahun_ajaran: '2026/2027',
-    jumlah_siswa: 0,
-  },
-  {
-    kelas_id: 'KLS-11A',
-    nama_kelas: 'XI A',
-    tingkat: 'XI',
-    tahun_ajaran: '2026/2027',
-    jumlah_siswa: 0,
-  },
-  {
-    kelas_id: 'KLS-12A',
-    nama_kelas: 'XII A',
-    tingkat: 'XII',
-    tahun_ajaran: '2026/2027',
-    jumlah_siswa: 0,
-  },
+  { kelas_id: 'KLS-10A', nama_kelas: 'X A', tingkat: 'X', tahun_ajaran: '2026/2027', jumlah_siswa: 0 },
+  { kelas_id: 'KLS-10B', nama_kelas: 'X B', tingkat: 'X', tahun_ajaran: '2026/2027', jumlah_siswa: 0 },
+  { kelas_id: 'KLS-10C', nama_kelas: 'X C', tingkat: 'X', tahun_ajaran: '2026/2027', jumlah_siswa: 0 },
+  { kelas_id: 'KLS-10D', nama_kelas: 'X D', tingkat: 'X', tahun_ajaran: '2026/2027', jumlah_siswa: 0 },
+  { kelas_id: 'KLS-11A', nama_kelas: 'XI A', tingkat: 'XI', tahun_ajaran: '2026/2027', jumlah_siswa: 0 },
+  { kelas_id: 'KLS-11B', nama_kelas: 'XI B', tingkat: 'XI', tahun_ajaran: '2026/2027', jumlah_siswa: 0 },
+  { kelas_id: 'KLS-11C', nama_kelas: 'XI C', tingkat: 'XI', tahun_ajaran: '2026/2027', jumlah_siswa: 0 },
+  { kelas_id: 'KLS-11D', nama_kelas: 'XI D', tingkat: 'XI', tahun_ajaran: '2026/2027', jumlah_siswa: 0 },
+  { kelas_id: 'KLS-12A', nama_kelas: 'XII A', tingkat: 'XII', tahun_ajaran: '2026/2027', jumlah_siswa: 0 },
+  { kelas_id: 'KLS-12B', nama_kelas: 'XII B', tingkat: 'XII', tahun_ajaran: '2026/2027', jumlah_siswa: 0 },
+  { kelas_id: 'KLS-12C', nama_kelas: 'XII C', tingkat: 'XII', tahun_ajaran: '2026/2027', jumlah_siswa: 0 },
+  { kelas_id: 'KLS-12D', nama_kelas: 'XII D', tingkat: 'XII', tahun_ajaran: '2026/2027', jumlah_siswa: 0 },
 ];
 
 export const initialMapelList: MataPelajaran[] = [
-  {
-    mapel_id: 'MP-01',
-    kode_mapel: 'MAT',
-    nama_mapel: 'Matematika',
-    tingkat: 'X, XI, XII',
-    kkm_default: 75,
-  },
-  {
-    mapel_id: 'MP-02',
-    kode_mapel: 'FIS',
-    nama_mapel: 'Fisika',
-    tingkat: 'X, XI, XII',
-    kkm_default: 75,
-  },
-  {
-    mapel_id: 'MP-03',
-    kode_mapel: 'BIN',
-    nama_mapel: 'Bahasa Indonesia',
-    tingkat: 'X, XI, XII',
-    kkm_default: 78,
-  },
-  {
-    mapel_id: 'MP-04',
-    kode_mapel: 'ING',
-    nama_mapel: 'Bahasa Inggris',
-    tingkat: 'X, XI, XII',
-    kkm_default: 75,
-  },
+  { mapel_id: 'MP-01', kode_mapel: 'MAT', nama_mapel: 'Matematika', tingkat: 'X, XI, XII', kkm_default: 75 },
+  { mapel_id: 'MP-02', kode_mapel: 'BIN', nama_mapel: 'Bahasa Indonesia', tingkat: 'X, XI, XII', kkm_default: 78 },
+  { mapel_id: 'MP-03', kode_mapel: 'ING', nama_mapel: 'Bahasa Inggris', tingkat: 'X, XI, XII', kkm_default: 75 },
+  { mapel_id: 'MP-04', kode_mapel: 'FIS', nama_mapel: 'Fisika', tingkat: 'X, XI, XII', kkm_default: 75 },
+  { mapel_id: 'MP-05', kode_mapel: 'KIM', nama_mapel: 'Kimia', tingkat: 'X, XI, XII', kkm_default: 75 },
+  { mapel_id: 'MP-06', kode_mapel: 'BIO', nama_mapel: 'Biologi', tingkat: 'X, XI, XII', kkm_default: 75 },
+  { mapel_id: 'MP-07', kode_mapel: 'INF', nama_mapel: 'Informatika', tingkat: 'X, XI, XII', kkm_default: 75 },
+  { mapel_id: 'MP-08', kode_mapel: 'SEJ', nama_mapel: 'Sejarah', tingkat: 'X, XI, XII', kkm_default: 75 },
+  { mapel_id: 'MP-09', kode_mapel: 'EKO', nama_mapel: 'Ekonomi', tingkat: 'X, XI, XII', kkm_default: 75 },
+  { mapel_id: 'MP-10', kode_mapel: 'GEO', nama_mapel: 'Geografi', tingkat: 'X, XI, XII', kkm_default: 75 },
+  { mapel_id: 'MP-11', kode_mapel: 'SOS', nama_mapel: 'Sosiologi', tingkat: 'X, XI, XII', kkm_default: 75 },
+  { mapel_id: 'MP-12', kode_mapel: 'PPKN', nama_mapel: 'Pendidikan Pancasila', tingkat: 'X, XI, XII', kkm_default: 78 },
+  { mapel_id: 'MP-13', kode_mapel: 'PAI', nama_mapel: 'Pendidikan Agama & Budi Pekerti', tingkat: 'X, XI, XII', kkm_default: 78 },
+  { mapel_id: 'MP-14', kode_mapel: 'PJOK', nama_mapel: 'PJOK', tingkat: 'X, XI, XII', kkm_default: 75 },
+  { mapel_id: 'MP-15', kode_mapel: 'SBD', nama_mapel: 'Seni Budaya', tingkat: 'X, XI, XII', kkm_default: 75 },
+  { mapel_id: 'MP-16', kode_mapel: 'BK', nama_mapel: 'Bimbingan Konseling (BK)', tingkat: 'X, XI, XII', kkm_default: 75 },
 ];
 
 export const initialSiswaList: Siswa[] = [];

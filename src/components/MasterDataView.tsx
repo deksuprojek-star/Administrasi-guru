@@ -38,6 +38,7 @@ export const MasterDataView: React.FC = () => {
   const [siswaList, setSiswaList] = useState<Siswa[]>([]);
   const [userList, setUserList] = useState<UserAccount[]>([]);
   const [selectedKelasFilter, setSelectedKelasFilter] = useState<string>('ALL');
+  const [selectedTingkatFilterKelas, setSelectedTingkatFilterKelas] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -54,10 +55,11 @@ export const MasterDataView: React.FC = () => {
 
   // Modal State for Kelas
   const [isKelasModalOpen, setIsKelasModalOpen] = useState(false);
+  const [editingKelas, setEditingKelas] = useState<Kelas | null>(null);
   const [kelasForm, setKelasForm] = useState<Partial<Kelas>>({
     kelas_id: '',
     nama_kelas: '',
-    tingkat: 'VII',
+    tingkat: 'X',
     tahun_ajaran: '2026/2027',
   });
 
@@ -68,7 +70,7 @@ export const MasterDataView: React.FC = () => {
     mapel_id: '',
     kode_mapel: '',
     nama_mapel: '',
-    tingkat: 'VII, VIII, IX',
+    tingkat: 'X, XI, XII',
     kkm_default: 75,
   });
 
@@ -320,24 +322,55 @@ export const MasterDataView: React.FC = () => {
   };
 
   // --- KELAS HANDLERS ---
+  const handleOpenAddKelas = () => {
+    setEditingKelas(null);
+    setKelasForm({
+      kelas_id: '',
+      nama_kelas: '',
+      tingkat: 'X',
+      tahun_ajaran: '2026/2027',
+    });
+    setIsKelasModalOpen(true);
+  };
+
+  const handleOpenEditKelas = (k: Kelas) => {
+    setEditingKelas(k);
+    setKelasForm({
+      kelas_id: k.kelas_id,
+      nama_kelas: k.nama_kelas,
+      tingkat: k.tingkat || 'X',
+      tahun_ajaran: k.tahun_ajaran || '2026/2027',
+    });
+    setIsKelasModalOpen(true);
+  };
+
   const handleSaveKelas = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!kelasForm.nama_kelas) {
+    if (!kelasForm.nama_kelas?.trim()) {
       showToast('Nama kelas wajib diisi', 'error');
       return;
     }
-    const cleanId = kelasForm.kelas_id || `KLS-${kelasForm.nama_kelas.replace(/\s+/g, '')}`;
+    const trimmedName = kelasForm.nama_kelas.trim();
+    const cleanId =
+      editingKelas?.kelas_id ||
+      kelasForm.kelas_id ||
+      `KLS-${trimmedName.toUpperCase().replace(/[^A-Z0-9]/g, '')}`;
+
     const payload: Kelas = {
       kelas_id: cleanId,
-      nama_kelas: kelasForm.nama_kelas,
-      tingkat: kelasForm.tingkat || 'VII',
+      nama_kelas: trimmedName,
+      tingkat: (kelasForm.tingkat as any) || 'X',
       tahun_ajaran: kelasForm.tahun_ajaran || '2026/2027',
+      jumlah_siswa: editingKelas?.jumlah_siswa || 0,
     };
+
     const res = await apiService.saveKelas(payload);
     if (res.success) {
       showToast(res.message);
       setIsKelasModalOpen(false);
       loadAllData();
+    } else {
+      showToast(res.message, 'error');
     }
   };
 
@@ -358,7 +391,7 @@ export const MasterDataView: React.FC = () => {
       mapel_id: '',
       kode_mapel: '',
       nama_mapel: '',
-      tingkat: 'VII, VIII, IX',
+      tingkat: 'X, XI, XII',
       kkm_default: 75,
     });
     setIsMapelModalOpen(true);
@@ -370,8 +403,8 @@ export const MasterDataView: React.FC = () => {
       mapel_id: m.mapel_id,
       kode_mapel: m.kode_mapel,
       nama_mapel: m.nama_mapel,
-      tingkat: m.tingkat,
-      kkm_default: m.kkm_default,
+      tingkat: m.tingkat || 'X, XI, XII',
+      kkm_default: m.kkm_default || 75,
     });
     setIsMapelModalOpen(true);
   };
@@ -382,12 +415,16 @@ export const MasterDataView: React.FC = () => {
       showToast('Kode dan Nama Mapel wajib diisi', 'error');
       return;
     }
-    const cleanId = editingMapel?.mapel_id || mapelForm.mapel_id || `MP-${mapelForm.kode_mapel.toUpperCase().replace(/\s+/g, '')}`;
+    const cleanId =
+      editingMapel?.mapel_id ||
+      mapelForm.mapel_id ||
+      `MP-${mapelForm.kode_mapel.toUpperCase().replace(/\s+/g, '')}`;
+
     const payload: MataPelajaran = {
       mapel_id: cleanId,
-      kode_mapel: mapelForm.kode_mapel.toUpperCase(),
-      nama_mapel: mapelForm.nama_mapel,
-      tingkat: mapelForm.tingkat || 'VII, VIII, IX',
+      kode_mapel: mapelForm.kode_mapel.toUpperCase().trim(),
+      nama_mapel: mapelForm.nama_mapel.trim(),
+      tingkat: mapelForm.tingkat || 'X, XI, XII',
       kkm_default: Number(mapelForm.kkm_default) || 75,
     };
     const res = await apiService.saveMapel(payload);
@@ -689,21 +726,32 @@ export const MasterDataView: React.FC = () => {
       {/* --- TAB 2: MASTER KELAS --- */}
       {activeTab === 'kelas' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-slate-500">
-              Daftar ruang rombongan belajar (Rombel) yang terdaftar pada tahun ajaran aktif.
-            </p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <p className="text-xs text-slate-500">
+                Daftar rombongan belajar (Rombel) SMA (Tingkat X, XI, XII) terurut otomatis dari terkecil ke terbesar.
+              </p>
+              {/* Filter Tingkat Pills */}
+              <div className="flex items-center gap-1.5 mt-2">
+                <span className="text-[11px] font-semibold text-slate-500 mr-1">Filter:</span>
+                {(['ALL', 'X', 'XI', 'XII'] as const).map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => setSelectedTingkatFilterKelas(t)}
+                    className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
+                      selectedTingkatFilterKelas === t
+                        ? 'bg-teal-700 text-white shadow-xs'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {t === 'ALL' ? `Semua (${kelasList.length})` : `Tingkat ${t} (${kelasList.filter((k) => k.tingkat === t).length})`}
+                  </button>
+                ))}
+              </div>
+            </div>
             <button
-              onClick={() => {
-                setKelasForm({
-                  kelas_id: '',
-                  nama_kelas: '',
-                  tingkat: 'VII',
-                  tahun_ajaran: '2026/2027',
-                });
-                setIsKelasModalOpen(true);
-              }}
-              className="px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-colors"
+              onClick={handleOpenAddKelas}
+              className="px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-colors self-start sm:self-auto"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Tambah Kelas</span>
@@ -711,34 +759,57 @@ export const MasterDataView: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {kelasList.map((k) => (
-              <div key={k.kelas_id} className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs hover:border-teal-400 transition-all">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold px-2 py-0.5 rounded bg-teal-50 text-teal-800">
-                    Tingkat {k.tingkat}
-                  </span>
-                  <button
-                    onClick={() => handleDeleteKelas(k.kelas_id)}
-                    className="text-slate-400 hover:text-rose-600 p-1"
-                    title="Hapus Kelas"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+            {kelasList
+              .filter((k) => selectedTingkatFilterKelas === 'ALL' || k.tingkat === selectedTingkatFilterKelas)
+              .map((k) => (
+                <div
+                  key={k.kelas_id}
+                  className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs hover:border-teal-400 hover:shadow-md transition-all flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold px-2 py-0.5 rounded bg-teal-50 text-teal-800 border border-teal-200">
+                        Tingkat {k.tingkat}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleOpenEditKelas(k)}
+                          className="p-1 text-slate-400 hover:text-teal-600 rounded transition-colors"
+                          title="Edit Nama / Data Kelas"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteKelas(k.kelas_id)}
+                          className="p-1 text-slate-400 hover:text-rose-600 rounded transition-colors"
+                          title="Hapus Kelas"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="mt-3">
+                      <h3 className="text-xl font-bold text-slate-900">Kelas {k.nama_kelas}</h3>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Jumlah: <span className="font-bold text-teal-700">{k.jumlah_siswa || 0} Siswa</span>
+                      </p>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Tahun Ajaran: {k.tahun_ajaran}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
+                    <span>ID: {k.kelas_id}</span>
+                    <button
+                      onClick={() => handleOpenEditKelas(k)}
+                      className="text-xs text-teal-600 hover:text-teal-700 font-semibold inline-flex items-center gap-1"
+                    >
+                      <Edit2 className="w-3 h-3" />
+                      <span>Edit Nama</span>
+                    </button>
+                  </div>
                 </div>
-                <div className="mt-3">
-                  <h3 className="text-xl font-bold text-slate-900">Kelas {k.nama_kelas}</h3>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Jumlah: <span className="font-bold text-teal-700">{k.jumlah_siswa || 0} Siswa</span>
-                  </p>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Tahun Ajaran: {k.tahun_ajaran}
-                  </p>
-                </div>
-                <div className="mt-4 pt-3 border-t border-slate-100 text-[11px] text-slate-400">
-                  ID: {k.kelas_id}
-                </div>
-              </div>
-            ))}
+              ))}
           </div>
         </div>
       )}
@@ -1134,11 +1205,16 @@ export const MasterDataView: React.FC = () => {
         </div>
       )}
 
-      {/* --- MODAL TAMBAH KELAS --- */}
+      {/* --- MODAL TAMBAH / EDIT KELAS --- */}
       {isKelasModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-2xs z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-slate-200">
-            <h2 className="text-base font-bold text-slate-900 mb-4">Tambah Kelas Baru</h2>
+            <h2 className="text-base font-bold text-slate-900 mb-1">
+              {editingKelas ? 'Edit Nama & Data Kelas' : 'Tambah Kelas Baru'}
+            </h2>
+            <p className="text-xs text-slate-500 mb-4">
+              {editingKelas ? 'Ubah nama rombel atau tingkat kelas.' : 'Daftarkan rombel kelas baru ke dalam sistem.'}
+            </p>
             <form onSubmit={handleSaveKelas} className="space-y-3 text-xs">
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">Nama Kelas *</label>
@@ -1147,24 +1223,21 @@ export const MasterDataView: React.FC = () => {
                   required
                   value={kelasForm.nama_kelas}
                   onChange={(e) => setKelasForm({ ...kelasForm, nama_kelas: e.target.value })}
-                  placeholder="Contoh: VII C / VIII B"
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500"
+                  placeholder="Contoh: X A, X 1, XI MIPA 1, XII IPS 2"
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500 font-medium"
                 />
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Tingkat</label>
+                  <label className="block font-semibold text-slate-700 mb-1">Tingkat Kelas *</label>
                   <select
                     value={kelasForm.tingkat}
-                    onChange={(e) => setKelasForm({ ...kelasForm, tingkat: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg"
+                    onChange={(e) => setKelasForm({ ...kelasForm, tingkat: e.target.value as any })}
+                    className="w-full px-3 py-2 border rounded-lg font-medium"
                   >
-                    <option value="VII">VII</option>
-                    <option value="VIII">VIII</option>
-                    <option value="IX">IX</option>
-                    <option value="X">X</option>
-                    <option value="XI">XI</option>
-                    <option value="XII">XII</option>
+                    <option value="X">Kelas X (Sepuluh)</option>
+                    <option value="XI">Kelas XI (Sebelas)</option>
+                    <option value="XII">Kelas XII (Dua Belas)</option>
                   </select>
                 </div>
                 <div>
@@ -1182,15 +1255,15 @@ export const MasterDataView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsKelasModalOpen(false)}
-                  className="px-3 py-1.5 border rounded-lg"
+                  className="px-3 py-1.5 border rounded-lg text-slate-700 hover:bg-slate-50 font-semibold"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-3 py-1.5 bg-teal-600 text-white rounded-lg font-semibold"
+                  className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-semibold shadow-xs"
                 >
-                  Simpan Kelas
+                  {editingKelas ? 'Simpan Perubahan' : 'Simpan Kelas'}
                 </button>
               </div>
             </form>
@@ -1202,9 +1275,12 @@ export const MasterDataView: React.FC = () => {
       {isMapelModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-2xs z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-slate-200">
-            <h2 className="text-base font-bold text-slate-900 mb-4">
+            <h2 className="text-base font-bold text-slate-900 mb-1">
               {editingMapel ? 'Edit Mata Pelajaran' : 'Tambah Mata Pelajaran Baru'}
             </h2>
+            <p className="text-xs text-slate-500 mb-4">
+              {editingMapel ? 'Perbarui nama mapel, kode, dan standar KKM.' : 'Masukkan mata pelajaran baru ke kurikulum.'}
+            </p>
             <form onSubmit={handleSaveMapel} className="space-y-3 text-xs">
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">Kode Mapel *</label>
@@ -1213,8 +1289,8 @@ export const MasterDataView: React.FC = () => {
                   required
                   value={mapelForm.kode_mapel}
                   onChange={(e) => setMapelForm({ ...mapelForm, kode_mapel: e.target.value })}
-                  placeholder="Contoh: IPA / MAT / PJOK"
-                  className="w-full px-3 py-2 border rounded-lg"
+                  placeholder="Contoh: MAT / FIS / BIO / PKWU"
+                  className="w-full px-3 py-2 border rounded-lg font-medium uppercase"
                 />
               </div>
               <div>
@@ -1224,8 +1300,8 @@ export const MasterDataView: React.FC = () => {
                   required
                   value={mapelForm.nama_mapel}
                   onChange={(e) => setMapelForm({ ...mapelForm, nama_mapel: e.target.value })}
-                  placeholder="Contoh: Pendidikan Pancasila"
-                  className="w-full px-3 py-2 border rounded-lg"
+                  placeholder="Contoh: Matematika Peminatan / Informatika"
+                  className="w-full px-3 py-2 border rounded-lg font-medium"
                 />
               </div>
               <div className="grid grid-cols-2 gap-2">
@@ -1235,7 +1311,7 @@ export const MasterDataView: React.FC = () => {
                     type="text"
                     value={mapelForm.tingkat}
                     onChange={(e) => setMapelForm({ ...mapelForm, tingkat: e.target.value })}
-                    placeholder="VII, VIII, IX"
+                    placeholder="X, XI, XII"
                     className="w-full px-3 py-2 border rounded-lg"
                   />
                 </div>
@@ -1247,7 +1323,7 @@ export const MasterDataView: React.FC = () => {
                     max="100"
                     value={mapelForm.kkm_default}
                     onChange={(e) => setMapelForm({ ...mapelForm, kkm_default: Number(e.target.value) })}
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-3 py-2 border rounded-lg font-medium"
                   />
                 </div>
               </div>
@@ -1255,15 +1331,15 @@ export const MasterDataView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsMapelModalOpen(false)}
-                  className="px-3 py-1.5 border rounded-lg"
+                  className="px-3 py-1.5 border rounded-lg text-slate-700 hover:bg-slate-50 font-semibold"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-3 py-1.5 bg-teal-600 text-white rounded-lg font-semibold"
+                  className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-semibold shadow-xs"
                 >
-                  {editingMapel ? 'Perbarui Mapel' : 'Simpan Mapel'}
+                  {editingMapel ? 'Simpan Perubahan' : 'Simpan Mapel'}
                 </button>
               </div>
             </form>
