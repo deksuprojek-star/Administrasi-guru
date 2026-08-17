@@ -20,6 +20,7 @@ import {
 } from '../types';
 import {
   initialGuruProfile,
+  initialGuruProfiles,
   initialUserAccount,
   initialUserAccounts,
   initialKonfigurasiSekolah,
@@ -37,6 +38,7 @@ import {
 const STORAGE_KEYS = {
   GAS_URL: 'SAG_GAS_WEBAPP_URL',
   GURU: 'SAG_GURU_PROFILE',
+  GURU_PROFILES: 'SAG_GURU_PROFILES_LIST',
   USER: 'SAG_USER_ACCOUNT',
   USERS: 'SAG_USERS_LIST',
   CONFIG: 'SAG_CONFIG_SEKOLAH',
@@ -124,6 +126,9 @@ class ApiService {
   private initLocalStorage() {
     if (!localStorage.getItem(STORAGE_KEYS.GURU)) {
       localStorage.setItem(STORAGE_KEYS.GURU, JSON.stringify(initialGuruProfile));
+    }
+    if (!localStorage.getItem(STORAGE_KEYS.GURU_PROFILES)) {
+      localStorage.setItem(STORAGE_KEYS.GURU_PROFILES, JSON.stringify(initialGuruProfiles));
     }
     if (!localStorage.getItem(STORAGE_KEYS.USERS)) {
       localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(initialUserAccounts));
@@ -343,13 +348,51 @@ class ApiService {
   }
 
   // --- GURU PROFILE ---
-  public async getGuruProfile(): Promise<GuruProfile> {
+  public async getGuruProfileList(): Promise<GuruProfile[]> {
+    const raw = localStorage.getItem(STORAGE_KEYS.GURU_PROFILES);
+    if (!raw) {
+      localStorage.setItem(STORAGE_KEYS.GURU_PROFILES, JSON.stringify(initialGuruProfiles));
+      return initialGuruProfiles;
+    }
+    const list: GuruProfile[] = JSON.parse(raw);
+    return list.length > 0 ? list : initialGuruProfiles;
+  }
+
+  public async getGuruProfile(guruIdOrNip?: string): Promise<GuruProfile> {
+    const profiles = await this.getGuruProfileList();
+    if (guruIdOrNip) {
+      const found = profiles.find(
+        (p) => p.guru_id === guruIdOrNip || p.nip === guruIdOrNip || p.nama_lengkap.toLowerCase() === guruIdOrNip.toLowerCase()
+      );
+      if (found) return found;
+    }
+
+    const currentUser = this.getCurrentUser();
+    if (currentUser?.guru_id || currentUser?.nip || currentUser?.nama_guru) {
+      const found = profiles.find(
+        (p) =>
+          (currentUser.guru_id && p.guru_id === currentUser.guru_id) ||
+          (currentUser.nip && p.nip === currentUser.nip) ||
+          (currentUser.nama_guru && p.nama_lengkap.toLowerCase().includes(currentUser.nama_guru.toLowerCase()))
+      );
+      if (found) return found;
+    }
+
     const raw = localStorage.getItem(STORAGE_KEYS.GURU);
-    return raw ? JSON.parse(raw) : initialGuruProfile;
+    return raw ? JSON.parse(raw) : (profiles[0] || initialGuruProfile);
   }
 
   public async saveGuruProfile(profile: GuruProfile): Promise<ApiResponse> {
+    const profiles = await this.getGuruProfileList();
+    const idx = profiles.findIndex((p) => p.guru_id === profile.guru_id || p.nip === profile.nip);
+    if (idx >= 0) {
+      profiles[idx] = { ...profiles[idx], ...profile };
+    } else {
+      profiles.push(profile);
+    }
+    localStorage.setItem(STORAGE_KEYS.GURU_PROFILES, JSON.stringify(profiles));
     localStorage.setItem(STORAGE_KEYS.GURU, JSON.stringify(profile));
+
     if (this.isOnlineGasMode()) {
       try {
         await this.callGas('saveGuruProfile', { profile });

@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { School, Lock, User, AlertCircle, ArrowRight, ShieldCheck, Database, Eye, EyeOff, UserCheck } from 'lucide-react';
+import { School, Lock, User, AlertCircle, ArrowRight, Eye, EyeOff, UserCheck } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import { UserAccount } from '../types';
 
@@ -18,8 +18,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [gasUrlInput, setGasUrlInput] = useState(apiService.getGasUrl());
-  const [showGasConfig, setShowGasConfig] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,11 +44,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
     }
   };
 
-  const handleSaveGasUrl = () => {
-    apiService.setGasUrl(gasUrlInput);
-    alert('URL Google Apps Script berhasil disimpan!');
-  };
-
   return (
     <div className="min-h-screen bg-slate-900 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
       {/* Decorative background grid and glow */}
@@ -66,8 +59,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
           <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
             Sistem Administrasi Guru
           </h2>
-          <p className="mt-1 text-sm text-slate-400">
-            Portal Otentikasi Role Administrator & Guru Pengajar
+          <p className="mt-1.5 text-base font-semibold text-teal-400">
+            SMA Negeri 1 Tabanan
           </p>
         </div>
 
@@ -157,48 +150,10 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
               <span>Dukungan Role Aktif: <strong>Admin</strong> & <strong>Guru Pengajar</strong></span>
             </div>
           </div>
-
-          {/* Google Apps Script Web App Endpoint Setting Toggle */}
-          <div className="mt-4 text-center">
-            <button
-              type="button"
-              onClick={() => setShowGasConfig(!showGasConfig)}
-              className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-teal-400 transition-colors"
-            >
-              <Database className="w-3.5 h-3.5" />
-              <span>{showGasConfig ? 'Sembunyikan URL GAS' : 'Hubungkan ke URL Google Apps Script'}</span>
-            </button>
-
-            {showGasConfig && (
-              <div className="mt-3 p-3 bg-slate-900/90 rounded-xl border border-slate-700 text-left">
-                <label className="block text-[11px] font-medium text-slate-400 mb-1">
-                  Google Apps Script Web App Exec URL:
-                </label>
-                <input
-                  type="url"
-                  value={gasUrlInput}
-                  onChange={(e) => setGasUrlInput(e.target.value)}
-                  placeholder="https://script.google.com/macros/s/.../exec"
-                  className="w-full text-xs px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded text-white focus:outline-hidden focus:border-teal-500 mb-2"
-                />
-                <button
-                  type="button"
-                  onClick={handleSaveGasUrl}
-                  className="w-full py-1 text-xs font-semibold bg-teal-700 hover:bg-teal-600 text-white rounded transition-colors"
-                >
-                  Simpan Endpoint
-                </button>
-              </div>
-            )}
-          </div>
         </div>
 
-        {/* Security Footer Notice */}
-        <div className="mt-6 text-center space-y-2">
-          <div className="inline-flex items-center gap-1.5 text-xs text-slate-500">
-            <ShieldCheck className="w-4 h-4 text-emerald-500" />
-            <span>Arsitektur Resmi: Google Apps Script • Google Sheets • Google Drive</span>
-          </div>
+        {/* Footer Notice */}
+        <div className="mt-6 text-center">
           <p className="text-xs text-slate-400 font-medium">
             Aplikasi ini dikembangkan oleh Dewa Suwika -- 2026
           </p>

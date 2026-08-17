@@ -135,21 +135,37 @@ export default function App() {
           {activeTab === 'profil_guru' && (
             <ProfilGuruView
               guruProfile={guruProfile || {
-                guru_id: 'GURU-001',
-                nama_lengkap: 'Drs. Hendra Gunawan, M.Pd.',
-                nip: '19820514 200801 1 009',
+                guru_id: currentUser?.guru_id || 'GURU-001',
+                nama_lengkap: currentUser?.nama_guru || 'Drs. Hendra Gunawan, M.Pd.',
+                nip: currentUser?.nip || '19820514 200801 1 009',
                 pangkat_golongan: 'Pembina / IV a',
                 jabatan: 'Guru Ahli Madya / Guru Pembimbing',
                 mata_pelajaran: 'Matematika',
-                email: 'hendra.gunawan@sekolah.sch.id',
+                email: currentUser?.email || 'hendra.gunawan@sekolah.sch.id',
                 telepon: '0812-3456-7890',
                 foto_profil_url: '',
               }}
+              currentUser={currentUser}
               onProfileUpdated={(p) => setGuruProfile(p)}
             />
           )}
 
-          {activeTab === 'master_data' && <MasterDataView />}
+          {activeTab === 'master_data' && (
+            currentUser?.role === 'admin' ? (
+              <MasterDataView />
+            ) : (
+              <div className="p-8 bg-white rounded-2xl border border-rose-200 text-center space-y-3">
+                <p className="text-sm font-semibold text-rose-700">Akses Dibatasi (Khusus Administrator)</p>
+                <p className="text-xs text-slate-500">Menu Data Master & Siswa hanya dapat diakses dan diedit oleh role Administrator.</p>
+                <button
+                  onClick={() => setActiveTab('dashboard')}
+                  className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-semibold"
+                >
+                  Kembali ke Dashboard
+                </button>
+              </div>
+            )
+          )}
 
           {activeTab === 'jadwal' && <JadwalMengajarView />}
 
@@ -172,9 +188,39 @@ export default function App() {
             />
           )}
 
-          {activeTab === 'gas_hub' && <GoogleAppsScriptHubView />}
+          {activeTab === 'gas_hub' && (
+            currentUser?.role === 'admin' ? (
+              <GoogleAppsScriptHubView />
+            ) : (
+              <div className="p-8 bg-white rounded-2xl border border-rose-200 text-center space-y-3">
+                <p className="text-sm font-semibold text-rose-700">Akses Dibatasi (Khusus Administrator)</p>
+                <p className="text-xs text-slate-500">Pengaturan Google Apps Script & Database hanya dapat diakses oleh Administrator.</p>
+                <button
+                  onClick={() => setActiveTab('dashboard')}
+                  className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-semibold"
+                >
+                  Kembali ke Dashboard
+                </button>
+              </div>
+            )
+          )}
 
-          {activeTab === 'backup_log' && <BackupAndLogsView />}
+          {activeTab === 'backup_log' && (
+            currentUser?.role === 'admin' ? (
+              <BackupAndLogsView />
+            ) : (
+              <div className="p-8 bg-white rounded-2xl border border-rose-200 text-center space-y-3">
+                <p className="text-sm font-semibold text-rose-700">Akses Dibatasi (Khusus Administrator)</p>
+                <p className="text-xs text-slate-500">Menu Backup & Log Aktivitas hanya dapat diakses oleh Administrator.</p>
+                <button
+                  onClick={() => setActiveTab('dashboard')}
+                  className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-semibold"
+                >
+                  Kembali ke Dashboard
+                </button>
+              </div>
+            )
+          )}
         </main>
 
         {/* Application Footer */}

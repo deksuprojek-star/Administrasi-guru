@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   User,
   Award,
@@ -15,34 +15,92 @@ import {
   CheckCircle2,
   AlertCircle,
   FileCheck,
-  Upload,
+  ShieldCheck,
+  GraduationCap,
+  Layers,
+  ChevronDown,
 } from 'lucide-react';
-import { GuruProfile } from '../types';
+import { GuruProfile, UserAccount, Kelas } from '../types';
 import { apiService } from '../services/apiService';
 
 interface ProfilGuruViewProps {
   guruProfile: GuruProfile;
+  currentUser?: UserAccount | null;
   onProfileUpdated: (profile: GuruProfile) => void;
 }
 
 export const ProfilGuruView: React.FC<ProfilGuruViewProps> = ({
   guruProfile,
+  currentUser,
   onProfileUpdated,
 }) => {
+  const isAdmin = currentUser?.role === 'admin';
   const [formData, setFormData] = useState<GuruProfile>({ ...guruProfile });
+  const [teacherList, setTeacherList] = useState<GuruProfile[]>([]);
+  const [selectedTeacherId, setSelectedTeacherId] = useState<string>(guruProfile?.guru_id || '');
+  const [kelasList, setKelasList] = useState<Kelas[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleChange = (field: keyof GuruProfile, value: string) => {
+  useEffect(() => {
+    loadData();
+  }, [currentUser]);
+
+  const loadData = async () => {
+    try {
+      const [profiles, classes] = await Promise.all([
+        apiService.getGuruProfileList(),
+        apiService.getKelasList(),
+      ]);
+      setTeacherList(profiles);
+      setKelasList(classes);
+
+      if (isAdmin) {
+        // Admin default to the first teacher or current profile
+        const initial = profiles.find((p) => p.guru_id === guruProfile?.guru_id) || profiles[0];
+        if (initial) {
+          setSelectedTeacherId(initial.guru_id);
+          setFormData(initial);
+        }
+      } else {
+        // Guru only sees their own profile
+        const myProfile = await apiService.getGuruProfile(currentUser?.guru_id || currentUser?.nip);
+        setFormData(myProfile || guruProfile);
+        setSelectedTeacherId(myProfile?.guru_id || guruProfile?.guru_id || '');
+      }
+    } catch (e) {
+      console.error('Error loading teacher data:', e);
+    }
+  };
+
+  const handleSelectTeacherChange = async (teacherId: string) => {
+    setSelectedTeacherId(teacherId);
+    setSaveStatus(null);
+    const selected = teacherList.find((t) => t.guru_id === teacherId);
+    if (selected) {
+      setFormData(selected);
+    } else {
+      const loaded = await apiService.getGuruProfile(teacherId);
+      setFormData(loaded);
+    }
+  };
+
+  const handleChange = (field: keyof GuruProfile, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleToggleKelasDiampu = (kelasId: string) => {
+    const current = formData.kelas_diampu || [];
+    const exists = current.includes(kelasId);
+    const updated = exists ? current.filter((k) => k !== kelasId) : [...current, kelasId];
+    setFormData((prev) => ({ ...prev, kelas_diampu: updated }));
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate size (max 2MB)
     if (file.size > 2 * 1024 * 1024) {
       alert('Ukuran berkas foto maksimal 2MB');
       return;
@@ -65,7 +123,14 @@ export const ProfilGuruView: React.FC<ProfilGuruViewProps> = ({
       const res = await apiService.saveGuruProfile(formData);
       if (res.success) {
         onProfileUpdated(formData);
-        setSaveStatus({ type: 'success', message: 'Data profil guru berhasil diperbarui!' });
+        // Update in teacher list state
+        setTeacherList((prev) =>
+          prev.map((t) => (t.guru_id === formData.guru_id ? { ...formData } : t))
+        );
+        setSaveStatus({
+          type: 'success',
+          message: `Data profil guru "${formData.nama_lengkap}" berhasil diperbarui!`,
+        });
       } else {
         setSaveStatus({ type: 'error', message: res.message || 'Gagal menyimpan profil' });
       }
@@ -81,14 +146,59 @@ export const ProfilGuruView: React.FC<ProfilGuruViewProps> = ({
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-            Profil Guru & Pengajar
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+            <span>Profil Guru & Tenaga Pendidik</span>
+            {isAdmin ? (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-300">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                Mode Administrator
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-teal-100 text-teal-800 border border-teal-300">
+                <GraduationCap className="w-3.5 h-3.5" />
+                Guru Pengajar
+              </span>
+            )}
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Kelola biodata resmi pendidik, pangkat golongan, dan identitas administrasi PBM
+            {isAdmin
+              ? 'Pilih nama guru dari daftar untuk meninjau biodata, pangkat golongan, dan penugasan PBM.'
+              : 'Kelola biodata resmi Anda, pangkat golongan, kontak, dan kelas yang diampu.'}
           </p>
         </div>
       </div>
+
+      {/* DROPDOWN PEMILIH GURU (KHUSUS ROLE ADMIN) */}
+      {isAdmin && (
+        <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200 shadow-2xs space-y-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <label className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+              <User className="w-4 h-4 text-amber-700" />
+              <span>Pilih Profil Guru Pengajar (Admin Viewer):</span>
+            </label>
+            <span className="text-[11px] text-amber-700 font-medium">
+              Total {teacherList.length} guru terdaftar dalam sistem
+            </span>
+          </div>
+
+          <div className="relative">
+            <select
+              value={selectedTeacherId}
+              onChange={(e) => handleSelectTeacherChange(e.target.value)}
+              className="w-full pl-3.5 pr-10 py-2.5 bg-white border border-amber-300 rounded-xl text-xs sm:text-sm font-semibold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-amber-500 shadow-2xs cursor-pointer appearance-none"
+            >
+              {teacherList.map((teacher) => (
+                <option key={teacher.guru_id} value={teacher.guru_id}>
+                  {teacher.nama_lengkap} — NIP: {teacher.nip || '-'} ({teacher.mata_pelajaran})
+                </option>
+              ))}
+            </select>
+            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-amber-700">
+              <ChevronDown className="w-4 h-4" />
+            </div>
+          </div>
+        </div>
+      )}
 
       {saveStatus && (
         <div
@@ -112,7 +222,10 @@ export const ProfilGuruView: React.FC<ProfilGuruViewProps> = ({
         <div className="bg-gradient-to-r from-slate-900 to-teal-900 p-6 sm:p-8 text-white flex flex-col sm:flex-row items-center sm:items-start gap-6">
           <div className="relative group">
             <img
-              src={formData.foto_profil_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80'}
+              src={
+                formData.foto_profil_url ||
+                'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80'
+              }
               alt="Foto Profil Guru"
               className="w-28 h-28 sm:w-32 sm:size-32 rounded-2xl object-cover border-4 border-white/20 shadow-xl"
             />
@@ -142,12 +255,17 @@ export const ProfilGuruView: React.FC<ProfilGuruViewProps> = ({
               {formData.nama_lengkap}
             </h2>
             <p className="text-xs sm:text-sm text-teal-200/90 mt-1">
-              {formData.jabatan} • Guru {formData.mata_pelajaran}
+              {formData.jabatan || 'Guru Pengajar'} • Guru {formData.mata_pelajaran || 'Mata Pelajaran'}
             </p>
             <div className="mt-3 flex flex-wrap justify-center sm:justify-start gap-2 text-xs text-slate-300">
               <span className="px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700">
                 Pangkat: {formData.pangkat_golongan || 'Pembina / IV a'}
               </span>
+              {formData.kelas_diampu && formData.kelas_diampu.length > 0 && (
+                <span className="px-2.5 py-1 rounded-md bg-teal-800/60 border border-teal-600 text-teal-200">
+                  Mengampu: {formData.kelas_diampu.join(', ')}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -170,7 +288,7 @@ export const ProfilGuruView: React.FC<ProfilGuruViewProps> = ({
                   value={formData.nama_lengkap}
                   onChange={(e) => handleChange('nama_lengkap', e.target.value)}
                   placeholder="Contoh: Drs. Hendra Gunawan, M.Pd."
-                  className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm rounded-lg border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-teal-500"
+                  className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm rounded-lg border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-teal-500 font-medium"
                 />
               </div>
             </div>
@@ -190,7 +308,7 @@ export const ProfilGuruView: React.FC<ProfilGuruViewProps> = ({
                   value={formData.nip}
                   onChange={(e) => handleChange('nip', e.target.value)}
                   placeholder="19820514 200801 1 009"
-                  className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm rounded-lg border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-teal-500"
+                  className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm rounded-lg border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-teal-500 font-medium"
                 />
               </div>
             </div>
@@ -206,7 +324,7 @@ export const ProfilGuruView: React.FC<ProfilGuruViewProps> = ({
                 </div>
                 <input
                   type="text"
-                  value={formData.pangkat_golongan}
+                  value={formData.pangkat_golongan || ''}
                   onChange={(e) => handleChange('pangkat_golongan', e.target.value)}
                   placeholder="Pembina / IV a, Penata Tk. I / III d"
                   className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm rounded-lg border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-teal-500"
@@ -221,7 +339,7 @@ export const ProfilGuruView: React.FC<ProfilGuruViewProps> = ({
               </label>
               <input
                 type="text"
-                value={formData.jabatan}
+                value={formData.jabatan || ''}
                 onChange={(e) => handleChange('jabatan', e.target.value)}
                 placeholder="Guru Ahli Madya / Guru Pembimbing / Wakasek"
                 className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-teal-500"
@@ -240,10 +358,10 @@ export const ProfilGuruView: React.FC<ProfilGuruViewProps> = ({
                 <input
                   type="text"
                   required
-                  value={formData.mata_pelajaran}
+                  value={formData.mata_pelajaran || ''}
                   onChange={(e) => handleChange('mata_pelajaran', e.target.value)}
                   placeholder="Matematika / IPA / Bahasa Indonesia"
-                  className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm rounded-lg border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-teal-500"
+                  className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm rounded-lg border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-teal-500 font-medium"
                 />
               </div>
             </div>
@@ -259,7 +377,7 @@ export const ProfilGuruView: React.FC<ProfilGuruViewProps> = ({
                 </div>
                 <input
                   type="email"
-                  value={formData.email}
+                  value={formData.email || ''}
                   onChange={(e) => handleChange('email', e.target.value)}
                   placeholder="guru@sekolah.sch.id"
                   className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm rounded-lg border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-teal-500"
@@ -278,17 +396,56 @@ export const ProfilGuruView: React.FC<ProfilGuruViewProps> = ({
                 </div>
                 <input
                   type="text"
-                  value={formData.telepon}
+                  value={formData.telepon || ''}
                   onChange={(e) => handleChange('telepon', e.target.value)}
                   placeholder="0812-3456-7890"
                   className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm rounded-lg border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-teal-500"
                 />
               </div>
             </div>
+
+            {/* Kelas yang Diampu (Checkbox / Chips) */}
+            <div className="sm:col-span-2 space-y-2 p-4 rounded-xl bg-slate-50 border border-slate-200">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <Layers className="w-4 h-4 text-teal-600" />
+                  <span>Daftar Kelas yang Diampu Guru:</span>
+                </label>
+                <span className="text-[11px] text-slate-500">
+                  {(formData.kelas_diampu || []).length} kelas dipilih
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Centang kelas yang diajar oleh guru ini untuk memfilter data siswa, jadwal, presensi, dan penilaian.
+              </p>
+              <div className="flex flex-wrap gap-2 pt-1">
+                {kelasList.map((k) => {
+                  const isChecked = (formData.kelas_diampu || []).includes(k.kelas_id) || (formData.kelas_diampu || []).includes(k.nama_kelas);
+                  return (
+                    <button
+                      type="button"
+                      key={k.kelas_id}
+                      onClick={() => handleToggleKelasDiampu(k.kelas_id)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                        isChecked
+                          ? 'bg-teal-600 text-white border-teal-700 shadow-2xs'
+                          : 'bg-white text-slate-700 border-slate-300 hover:border-slate-400 hover:bg-slate-100'
+                      }`}
+                    >
+                      {isChecked ? '✓ ' : '+ '}
+                      {k.nama_kelas} ({k.tingkat})
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
 
           {/* Action Bar */}
-          <div className="pt-4 border-t border-slate-100 flex items-center justify-end">
+          <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+            <span className="text-xs text-slate-400">
+              {isAdmin ? 'Perubahan yang disimpan akan langsung memperbarui database master guru.' : 'Biodata ini digunakan pada lembar laporan dan administrasi guru.'}
+            </span>
             <button
               type="submit"
               disabled={isSaving}

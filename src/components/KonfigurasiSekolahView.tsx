@@ -38,6 +38,7 @@ export const KonfigurasiSekolahView: React.FC<KonfigurasiSekolahViewProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [status, setStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const kopFotoInputRef = useRef<HTMLInputElement>(null);
 
   const kopSectionRef = useRef<HTMLDivElement>(null);
   const logoSectionRef = useRef<HTMLDivElement>(null);
@@ -67,6 +68,28 @@ export const KonfigurasiSekolahView: React.FC<KonfigurasiSekolahViewProps> = ({
             kop_logo_kiri_url: prev.kop_logo_kiri_url || result,
           }));
           setStatus({ type: 'success', message: 'Logo sekolah berhasil dimuat dari perangkat!' });
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleKopFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 3 * 1024 * 1024) {
+        setStatus({ type: 'error', message: 'Ukuran berkas foto KOP maksimal 3MB' });
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        if (result) {
+          setFormData((prev) => ({
+            ...prev,
+            kop_surat_url: result,
+          }));
+          setStatus({ type: 'success', message: 'Foto KOP surat resmi berhasil diunggah!' });
         }
       };
       reader.readAsDataURL(file);
@@ -317,9 +340,9 @@ export const KonfigurasiSekolahView: React.FC<KonfigurasiSekolahViewProps> = ({
           </div>
         )}
 
-        {/* SECTION 2: Pengaturan KOP Surat Sekolah (Permintaan Khusus User) */}
+        {/* SECTION 2: Pengaturan KOP Surat Sekolah (Foto Link & Teks Format) */}
         {(activeSection === 'all' || activeSection === 'kop') && (
-          <div ref={kopSectionRef} id="kop-sekolah" className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-5">
+          <div ref={kopSectionRef} id="kop-sekolah" className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <FileText className="w-4 h-4 text-teal-600" />
@@ -336,105 +359,207 @@ export const KonfigurasiSekolahView: React.FC<KonfigurasiSekolahViewProps> = ({
             </div>
 
             <p className="text-xs text-slate-500">
-              Teks KOP ini akan dicetak otomatis pada bagian atas setiap dokumen resmi seperti Jurnal PBM, Rekap Presensi Siswa, dan Lembar Penilaian.
+              KOP Surat ini akan dicetak otomatis pada bagian atas setiap dokumen resmi seperti Jurnal PBM, Rekap Presensi Siswa, Lembar Penilaian, dan Rekap Bimbingan Konseling. Anda dapat menggunakan <strong>Foto / Link Gambar KOP Surat Utuh</strong> atau <strong>Format Teks Kedinasan</strong>.
             </p>
 
-            <div className="grid grid-cols-1 gap-3.5 text-xs">
-              <div className="space-y-1.5">
-                <label className="font-semibold text-slate-700">
-                  Header KOP Baris 1 (Instansi / Pemerintah Provinsi)
-                </label>
-                <input
-                  type="text"
-                  value={formData.kop_text_baris1 || ''}
-                  onChange={(e) => handleChange('kop_text_baris1', e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-teal-500 focus:outline-hidden font-medium"
-                  placeholder="PEMERINTAH PROVINSI BALI"
-                />
+            {/* OPSI 1: FOTO / LINK GAMBAR KOP SURAT */}
+            <div className="p-4 rounded-xl bg-teal-50/60 border border-teal-200 space-y-3.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ImageIcon className="w-4 h-4 text-teal-700" />
+                  <h3 className="text-xs font-bold text-teal-900 uppercase tracking-wide">
+                    Opsi Utama: Foto / Link Gambar KOP Surat Utuh (Scan / Format Gambar Resmi)
+                  </h3>
+                </div>
+                {formData.kop_surat_url && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-teal-600 text-white">
+                    Mode Gambar KOP Aktif
+                  </span>
+                )}
               </div>
 
-              <div className="space-y-1.5">
-                <label className="font-semibold text-slate-700">
-                  Header KOP Baris 2 (Dinas Pendidikan / Badan Pengawas)
-                </label>
-                <input
-                  type="text"
-                  value={formData.kop_text_baris2 || ''}
-                  onChange={(e) => handleChange('kop_text_baris2', e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-teal-500 focus:outline-hidden font-medium"
-                  placeholder="DINAS PENDIDIKAN KEPEMUDAAN DAN OLAHRAGA"
-                />
-              </div>
+              <p className="text-[11px] text-teal-800 leading-relaxed">
+                Jika sekolah memiliki gambar/scan KOP surat resmi yang sudah jadi, masukkan link fotonya atau unggah dari perangkat. Gambar ini akan langsung tampil di atas dokumen saat dicetak.
+              </p>
 
-              <div className="space-y-1.5">
-                <label className="font-semibold text-slate-700">
-                  Header KOP Baris 3 (Nama Satuan Pendidikan & Status Akreditasi)
-                </label>
-                <input
-                  type="text"
-                  value={formData.kop_text_baris3 || ''}
-                  onChange={(e) => handleChange('kop_text_baris3', e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-teal-500 focus:outline-hidden font-bold text-slate-900"
-                  placeholder="SMA NEGERI 1 TABANAN (TERAKREDITASI A)"
-                />
-              </div>
+              <div className="space-y-2 text-xs">
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-700 flex items-center gap-1">
+                    <LinkIcon className="w-3.5 h-3.5 text-teal-600" />
+                    <span>URL / Link Foto KOP Surat Sekolah:</span>
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      value={formData.kop_surat_url || ''}
+                      onChange={(e) => handleChange('kop_surat_url', e.target.value)}
+                      className="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                      placeholder="https://.../kop-surat-sekolah.png atau kosongkan untuk mode teks"
+                    />
+                    {formData.kop_surat_url && (
+                      <button
+                        type="button"
+                        onClick={() => handleChange('kop_surat_url', '')}
+                        className="px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold transition-colors"
+                      >
+                        Hapus Foto KOP
+                      </button>
+                    )}
+                  </div>
+                </div>
 
-              <div className="space-y-1.5">
-                <label className="font-semibold text-slate-700">
-                  Header KOP Baris 4 (Alamat, Kontak, Kode Pos, Website & NPSN)
-                </label>
-                <textarea
-                  rows={2}
-                  value={formData.kop_text_baris4 || ''}
-                  onChange={(e) => handleChange('kop_text_baris4', e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
-                  placeholder="Jl. Gunung Agung No. 122, Tabanan, Bali | Telp: (0361) 811234 | Email: info@sman1tabanan.sch.id | NPSN: 50101123"
-                />
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 bg-white rounded-xl border border-slate-200">
+                  <div>
+                    <span className="font-bold text-slate-800 block text-xs">Atau Unggah Foto KOP dari Komputer / HP</span>
+                    <span className="text-[11px] text-slate-500">Mendukung format PNG, JPG, WEBP (Maksimal 3 MB)</span>
+                  </div>
+                  <input
+                    type="file"
+                    ref={kopFotoInputRef}
+                    onChange={handleKopFileUpload}
+                    accept="image/*"
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => kopFotoInputRef.current?.click()}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-semibold text-xs shadow-xs transition-colors shrink-0"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>Pilih Foto KOP Sekolah</span>
+                  </button>
+                </div>
               </div>
             </div>
 
             {/* LIVE PREVIEW KOP SURAT */}
-            <div className="pt-3">
+            <div className="pt-1">
               <div className="flex items-center gap-1.5 mb-2 text-xs font-bold text-slate-700">
                 <Eye className="w-3.5 h-3.5 text-teal-600" />
-                <span>Pratinjau KOP Surat Kedinasan:</span>
+                <span>
+                  {formData.kop_surat_url
+                    ? 'Pratinjau Foto Gambar KOP Surat Sekolah (Akan Dicetak Pada Dokumen):'
+                    : 'Pratinjau KOP Surat Kedinasan (Format Teks):'}
+                </span>
               </div>
-              <div className="p-5 rounded-xl bg-slate-50 border border-slate-300/80 shadow-xs">
-                <div className="flex items-center justify-between gap-4">
-                  {/* Logo Kiri */}
-                  <div className="w-16 h-16 shrink-0 flex items-center justify-center">
-                    {formData.logo_url || formData.kop_logo_kiri_url ? (
-                      <img
-                        src={formData.kop_logo_kiri_url || formData.logo_url}
-                        alt="Logo Sekolah"
-                        className="w-14 h-14 object-contain"
-                      />
-                    ) : (
-                      <div className="w-14 h-14 rounded-lg bg-teal-700 text-white flex items-center justify-center font-bold text-xs shadow-xs">
-                        <School className="w-8 h-8" />
+              <div className="p-5 rounded-xl bg-white border border-slate-300 shadow-xs">
+                {formData.kop_surat_url ? (
+                  <div className="w-full flex flex-col items-center justify-center p-2 bg-slate-50/50 rounded-lg">
+                    <img
+                      src={formData.kop_surat_url}
+                      alt="Pratinjau KOP Surat Sekolah"
+                      className="w-full max-h-36 object-contain rounded-md border border-slate-200 shadow-xs bg-white"
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = 'none';
+                      }}
+                    />
+                    <p className="text-[11px] text-teal-700 font-medium mt-2">
+                      ✓ Foto KOP Surat Resmi aktif dan siap dicetak otomatis ke seluruh laporan
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="flex items-center justify-between gap-4">
+                      {/* Logo Kiri */}
+                      <div className="w-16 h-16 shrink-0 flex items-center justify-center">
+                        {formData.logo_url || formData.kop_logo_kiri_url ? (
+                          <img
+                            src={formData.kop_logo_kiri_url || formData.logo_url}
+                            alt="Logo Sekolah"
+                            className="w-14 h-14 object-contain"
+                          />
+                        ) : (
+                          <div className="w-14 h-14 rounded-lg bg-teal-700 text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                            <School className="w-8 h-8" />
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
 
-                  {/* KOP Text Center */}
-                  <div className="flex-1 text-center space-y-0.5">
-                    <p className="text-xs font-semibold text-slate-800 tracking-wider uppercase leading-tight">
-                      {formData.kop_text_baris1 || 'PEMERINTAH PROVINSI BALI'}
-                    </p>
-                    <p className="text-xs font-semibold text-slate-800 tracking-wider uppercase leading-tight">
-                      {formData.kop_text_baris2 || 'DINAS PENDIDIKAN KEPEMUDAAN DAN OLAHRAGA'}
-                    </p>
-                    <p className="text-sm font-black text-slate-950 tracking-wide uppercase leading-snug">
-                      {formData.kop_text_baris3 || formData.nama_sekolah || 'SMA NEGERI 1 TABANAN'}
-                    </p>
-                    <p className="text-[10px] text-slate-600 font-medium leading-tight">
-                      {formData.kop_text_baris4 || `${formData.alamat_sekolah || 'Jl. Gunung Agung No. 122, Tabanan'} | Telp: ${formData.telepon || '(0361) 811234'} | NPSN: ${formData.npsn || '50101123'}`}
-                    </p>
+                      {/* KOP Text Center */}
+                      <div className="flex-1 text-center space-y-0.5">
+                        <p className="text-xs font-semibold text-slate-800 tracking-wider uppercase leading-tight">
+                          {formData.kop_text_baris1 || 'PEMERINTAH PROVINSI BALI'}
+                        </p>
+                        <p className="text-xs font-semibold text-slate-800 tracking-wider uppercase leading-tight">
+                          {formData.kop_text_baris2 || 'DINAS PENDIDIKAN KEPEMUDAAN DAN OLAHRAGA'}
+                        </p>
+                        <p className="text-sm font-black text-slate-950 tracking-wide uppercase leading-snug">
+                          {formData.kop_text_baris3 || formData.nama_sekolah || 'SMA NEGERI 1 TABANAN'}
+                        </p>
+                        <p className="text-[10px] text-slate-600 font-medium leading-tight">
+                          {formData.kop_text_baris4 || `${formData.alamat_sekolah || 'Jl. Gunung Agung No. 122, Tabanan'} | Telp: ${formData.telepon || '(0361) 811234'} | NPSN: ${formData.npsn || '50101123'}`}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Double Border Line Khas KOP Surat Resmi */}
+                    <div className="mt-3 border-t-2 border-b border-slate-900 pt-0.5" />
                   </div>
+                )}
+              </div>
+            </div>
+
+            {/* OPSI 2: FORMAT TEKS STRUKTURAL KOP SURAT */}
+            <div className="pt-3 border-t border-slate-200 space-y-3">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-slate-600" />
+                <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wide">
+                  Opsi Format Teks Terstruktur KOP Surat (Digunakan jika Foto KOP tidak diisi)
+                </h3>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3.5 text-xs">
+                <div className="space-y-1.5">
+                  <label className="font-semibold text-slate-700">
+                    Header KOP Baris 1 (Instansi / Pemerintah Provinsi)
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.kop_text_baris1 || ''}
+                    onChange={(e) => handleChange('kop_text_baris1', e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-teal-500 focus:outline-hidden font-medium"
+                    placeholder="PEMERINTAH PROVINSI BALI"
+                  />
                 </div>
 
-                {/* Double Border Line Khas KOP Surat Resmi */}
-                <div className="mt-3 border-t-2 border-b border-slate-900 pt-0.5" />
+                <div className="space-y-1.5">
+                  <label className="font-semibold text-slate-700">
+                    Header KOP Baris 2 (Dinas Pendidikan / Badan Pengawas)
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.kop_text_baris2 || ''}
+                    onChange={(e) => handleChange('kop_text_baris2', e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-teal-500 focus:outline-hidden font-medium"
+                    placeholder="DINAS PENDIDIKAN KEPEMUDAAN DAN OLAHRAGA"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="font-semibold text-slate-700">
+                    Header KOP Baris 3 (Nama Satuan Pendidikan & Status Akreditasi)
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.kop_text_baris3 || ''}
+                    onChange={(e) => handleChange('kop_text_baris3', e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-teal-500 focus:outline-hidden font-bold text-slate-900"
+                    placeholder="SMA NEGERI 1 TABANAN (TERAKREDITASI A)"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="font-semibold text-slate-700">
+                    Header KOP Baris 4 (Alamat, Kontak, Kode Pos, Website & NPSN)
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={formData.kop_text_baris4 || ''}
+                    onChange={(e) => handleChange('kop_text_baris4', e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                    placeholder="Jl. Gunung Agung No. 122, Tabanan, Bali | Telp: (0361) 811234 | Email: info@sman1tabanan.sch.id | NPSN: 50101123"
+                  />
+                </div>
               </div>
             </div>
           </div>

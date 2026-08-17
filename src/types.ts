@@ -13,6 +13,7 @@ export interface GuruProfile {
   foto_profil_url: string;
   email: string;
   telepon: string;
+  kelas_diampu?: string[]; // Array kelas yang diampu guru, contoh: ['KLS-7A', 'KLS-7B'] atau ['VII A', 'VII B']
 }
 
 export interface UserAccount {
@@ -26,6 +27,7 @@ export interface UserAccount {
   email?: string;
   status_aktif?: boolean;
   created_at?: string;
+  kelas_diampu?: string[];
 }
 
 export interface Kelas {
@@ -174,6 +176,7 @@ export interface KonfigurasiSekolah {
   tahun_ajaran: string; // e.g. "2026/2027"
   semester_aktif: 'Ganjil' | 'Genap';
   logo_url: string;
+  kop_surat_url?: string; // Foto / link kop surat sekolah utuh
   kop_text_baris1?: string;
   kop_text_baris2?: string;
   kop_text_baris3?: string;

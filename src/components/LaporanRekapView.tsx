@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import {
   GuruProfile,
+  UserAccount,
   Kelas,
   Siswa,
   AbsensiRecord,
@@ -31,6 +32,7 @@ import { apiService } from '../services/apiService';
 
 interface LaporanRekapViewProps {
   guruProfile: GuruProfile | null;
+  currentUser?: UserAccount | null;
   config?: KonfigurasiSekolah | null;
 }
 
@@ -51,6 +53,7 @@ const BULAN_NAMES = [
 
 export const LaporanRekapView: React.FC<LaporanRekapViewProps> = ({
   guruProfile,
+  currentUser,
   config: propConfig,
 }) => {
   const [reportType, setReportType] = useState<
@@ -86,14 +89,25 @@ export const LaporanRekapView: React.FC<LaporanRekapViewProps> = ({
       apiService.getBimbinganList(),
       apiService.getConfig(),
     ]);
-    setKelasList(k);
+
+    // If currentUser is guru and has kelas_diampu, filter classes
+    let availableClasses = k;
+    const diampu = guruProfile?.kelas_diampu || currentUser?.kelas_diampu;
+    if (currentUser?.role === 'guru' && diampu && diampu.length > 0) {
+      availableClasses = k.filter(
+        (cls) => diampu.includes(cls.kelas_id) || diampu.includes(cls.nama_kelas)
+      );
+      if (availableClasses.length === 0) availableClasses = k;
+    }
+
+    setKelasList(availableClasses);
     setSiswaList(s);
     setAbsensiList(a);
     setPenilaianList(p);
     setJurnalList(j);
     setBimbinganList(b);
     if (!config && cfg) setConfig(cfg);
-    if (k.length > 0) setSelectedKelasId(k[0].kelas_id);
+    if (availableClasses.length > 0) setSelectedKelasId(availableClasses[0].kelas_id);
   };
 
   const handlePrint = () => {
@@ -353,56 +367,66 @@ export const LaporanRekapView: React.FC<LaporanRekapViewProps> = ({
       {/* --- FORMAL PRINTABLE REPORT CONTAINER --- */}
       <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-xs text-slate-900 print:border-none print:shadow-none print:p-0">
         {/* Formal School Letterhead / KOP SURAT RESMI */}
-        <div className="pb-3 border-b-2 border-slate-900">
-          <div className="flex items-center justify-between gap-4">
-            {/* Logo Kiri KOP */}
-            <div className="w-16 h-16 shrink-0 flex items-center justify-center">
-              {config?.logo_url || config?.kop_logo_kiri_url ? (
-                <img
-                  src={config.kop_logo_kiri_url || config.logo_url}
-                  alt="Logo Sekolah"
-                  className="w-14 h-14 object-contain"
-                />
-              ) : (
-                <div className="w-14 h-14 rounded-lg bg-teal-700 text-white flex items-center justify-center font-bold text-xs">
-                  <School className="w-8 h-8" />
-                </div>
-              )}
-            </div>
-
-            {/* KOP Text Center */}
-            <div className="flex-1 text-center space-y-0.5">
-              <p className="text-xs font-semibold text-slate-800 tracking-wider uppercase leading-tight">
-                {config?.kop_text_baris1 || 'PEMERINTAH PROVINSI BALI'}
-              </p>
-              <p className="text-xs font-semibold text-slate-800 tracking-wider uppercase leading-tight">
-                {config?.kop_text_baris2 || 'DINAS PENDIDIKAN KEPEMUDAAN DAN OLAHRAGA'}
-              </p>
-              <p className="text-sm font-black text-slate-950 tracking-wide uppercase leading-snug">
-                {config?.kop_text_baris3 || config?.nama_sekolah || 'SMA NEGERI 1 TABANAN (TERAKREDITASI A)'}
-              </p>
-              <p className="text-[10px] text-slate-600 font-medium leading-tight">
-                {config?.kop_text_baris4 || `${config?.alamat_sekolah || 'Jl. Gunung Agung No. 122, Tabanan'} | Telp: ${config?.telepon || '(0361) 811234'} | NPSN: ${config?.npsn || '50101123'}`}
-              </p>
-            </div>
-
-            {/* Spacer / Logo Kanan KOP (jika ada) */}
-            <div className="w-16 h-16 shrink-0 flex items-center justify-center">
-              {config?.kop_logo_kanan_url ? (
-                <img
-                  src={config.kop_logo_kanan_url}
-                  alt="Logo Kanan"
-                  className="w-14 h-14 object-contain"
-                />
-              ) : (
-                <div className="w-14 h-14" />
-              )}
-            </div>
+        {config?.kop_surat_url ? (
+          <div className="pb-3 border-b-2 border-slate-900 flex justify-center">
+            <img
+              src={config.kop_surat_url}
+              alt="KOP Surat Resmi Sekolah"
+              className="w-full max-h-36 object-contain"
+            />
           </div>
+        ) : (
+          <div className="pb-3 border-b-2 border-slate-900">
+            <div className="flex items-center justify-between gap-4">
+              {/* Logo Kiri KOP */}
+              <div className="w-16 h-16 shrink-0 flex items-center justify-center">
+                {config?.logo_url || config?.kop_logo_kiri_url ? (
+                  <img
+                    src={config.kop_logo_kiri_url || config.logo_url}
+                    alt="Logo Sekolah"
+                    className="w-14 h-14 object-contain"
+                  />
+                ) : (
+                  <div className="w-14 h-14 rounded-lg bg-teal-700 text-white flex items-center justify-center font-bold text-xs">
+                    <School className="w-8 h-8" />
+                  </div>
+                )}
+              </div>
 
-          {/* Garis Khas KOP Surat Resmi (Double Line) */}
-          <div className="mt-2 border-t-2 border-b border-slate-900 pt-0.5" />
-        </div>
+              {/* KOP Text Center */}
+              <div className="flex-1 text-center space-y-0.5">
+                <p className="text-xs font-semibold text-slate-800 tracking-wider uppercase leading-tight">
+                  {config?.kop_text_baris1 || 'PEMERINTAH PROVINSI BALI'}
+                </p>
+                <p className="text-xs font-semibold text-slate-800 tracking-wider uppercase leading-tight">
+                  {config?.kop_text_baris2 || 'DINAS PENDIDIKAN KEPEMUDAAN DAN OLAHRAGA'}
+                </p>
+                <p className="text-sm font-black text-slate-950 tracking-wide uppercase leading-snug">
+                  {config?.kop_text_baris3 || config?.nama_sekolah || 'SMA NEGERI 1 TABANAN (TERAKREDITASI A)'}
+                </p>
+                <p className="text-[10px] text-slate-600 font-medium leading-tight">
+                  {config?.kop_text_baris4 || `${config?.alamat_sekolah || 'Jl. Gunung Agung No. 122, Tabanan'} | Telp: ${config?.telepon || '(0361) 811234'} | NPSN: ${config?.npsn || '50101123'}`}
+                </p>
+              </div>
+
+              {/* Spacer / Logo Kanan KOP (jika ada) */}
+              <div className="w-16 h-16 shrink-0 flex items-center justify-center">
+                {config?.kop_logo_kanan_url ? (
+                  <img
+                    src={config.kop_logo_kanan_url}
+                    alt="Logo Kanan"
+                    className="w-14 h-14 object-contain"
+                  />
+                ) : (
+                  <div className="w-14 h-14" />
+                )}
+              </div>
+            </div>
+
+            {/* Garis Khas KOP Surat Resmi (Double Line) */}
+            <div className="mt-2 border-t-2 border-b border-slate-900 pt-0.5" />
+          </div>
+        )}
 
         {/* Report Document Title */}
         <div className="text-center my-3 space-y-0.5">

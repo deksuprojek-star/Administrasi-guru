@@ -107,20 +107,36 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Apps Script Connection Badge */}
-          <button
-            onClick={() => setActiveTab('gas_hub')}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-              isGasConnected
-                ? 'bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100'
-                : 'bg-slate-50 border-slate-300 text-slate-700 hover:bg-slate-100'
-            }`}
-            title="Klik untuk konfigurasi Google Apps Script Web App & Sheets"
-          >
-            <Database className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">
-              {isGasConnected ? 'GAS Terhubung' : 'Lokal / GAS'}
-            </span>
-          </button>
+          {isAdmin ? (
+            <button
+              onClick={() => setActiveTab('gas_hub')}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                isGasConnected
+                  ? 'bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100'
+                  : 'bg-slate-50 border-slate-300 text-slate-700 hover:bg-slate-100'
+              }`}
+              title="Klik untuk konfigurasi Google Apps Script Web App & Sheets (Admin)"
+            >
+              <Database className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">
+                {isGasConnected ? 'GAS Terhubung' : 'Lokal / GAS'}
+              </span>
+            </button>
+          ) : (
+            <div
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border ${
+                isGasConnected
+                  ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                  : 'bg-slate-50 border-slate-300 text-slate-700'
+              }`}
+              title="Status Koneksi Database Sistem"
+            >
+              <Database className="w-3.5 h-3.5 text-teal-600" />
+              <span className="hidden sm:inline">
+                {isGasConnected ? 'GAS Terhubung' : 'Database Aktif'}
+              </span>
+            </div>
+          )}
 
           {/* Quick Action: Master Data / Absensi based on role */}
           {isAdmin ? (

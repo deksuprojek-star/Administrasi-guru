@@ -58,20 +58,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, section: 'Utama' },
-    { id: 'profil_guru', label: 'Profil Guru', icon: UserCheck, section: 'Utama' },
-    { id: 'master_data', label: 'Data Master & Siswa', icon: Users, section: 'Administrasi' },
-    { id: 'jadwal', label: 'Jadwal Mengajar', icon: CalendarDays, section: 'Administrasi' },
-    { id: 'absensi', label: 'Presensi & Rekap Siswa', icon: CheckSquare, section: 'PBM Harian' },
-    { id: 'jurnal', label: 'Jurnal Mengajar', icon: BookOpen, section: 'PBM Harian' },
-    { id: 'penilaian', label: 'Penilaian Siswa', icon: GraduationCap, section: 'Evaluasi' },
-    { id: 'bimbingan', label: 'Bimbingan Guru Wali', icon: HeartHandshake, section: 'Evaluasi' },
-    { id: 'laporan', label: 'Laporan & Rekap', icon: FileText, section: 'Laporan' },
-    { id: 'konfigurasi', label: 'Konfigurasi Sekolah', icon: Settings, section: 'Pengaturan' },
-    { id: 'gas_hub', label: 'Google Apps Script & DB', icon: Database, section: 'Pengaturan' },
-    { id: 'backup_log', label: 'Backup & Log', icon: ShieldCheck, section: 'Pengaturan' },
+  const isAdmin = currentUser?.role === 'admin';
+
+  const rawMenuItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, section: 'Utama', adminOnly: false },
+    { id: 'profil_guru', label: isAdmin ? 'Profil Guru (Admin)' : 'Profil Saya', icon: UserCheck, section: 'Utama', adminOnly: false },
+    { id: 'master_data', label: 'Data Master & Siswa', icon: Users, section: 'Administrasi', adminOnly: true },
+    { id: 'jadwal', label: 'Jadwal Mengajar', icon: CalendarDays, section: 'Administrasi', adminOnly: false },
+    { id: 'absensi', label: 'Presensi & Rekap Siswa', icon: CheckSquare, section: 'PBM Harian', adminOnly: false },
+    { id: 'jurnal', label: 'Jurnal Mengajar', icon: BookOpen, section: 'PBM Harian', adminOnly: false },
+    { id: 'penilaian', label: 'Penilaian Siswa', icon: GraduationCap, section: 'Evaluasi', adminOnly: false },
+    { id: 'bimbingan', label: 'Bimbingan Guru Wali', icon: HeartHandshake, section: 'Evaluasi', adminOnly: false },
+    { id: 'laporan', label: 'Laporan & Rekap', icon: FileText, section: 'Laporan', adminOnly: false },
+    { id: 'konfigurasi', label: 'Konfigurasi Sekolah', icon: Settings, section: 'Pengaturan', adminOnly: false },
+    { id: 'gas_hub', label: 'Google Apps Script & DB', icon: Database, section: 'Pengaturan', adminOnly: true },
+    { id: 'backup_log', label: 'Backup & Log', icon: ShieldCheck, section: 'Pengaturan', adminOnly: true },
   ];
+
+  const menuItems = rawMenuItems.filter((item) => (item.adminOnly ? isAdmin : true));
 
   const sections = Array.from(new Set(menuItems.map((m) => m.section)));
 
