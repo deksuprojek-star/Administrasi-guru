@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { Menu, Calendar, Clock, Sparkles, Database, CheckCircle2 } from 'lucide-react';
+import { Menu, Calendar, Clock, Sparkles, Database, CheckCircle2, ShieldCheck, GraduationCap } from 'lucide-react';
 import { KonfigurasiSekolah, GuruProfile, ActiveTab, UserAccount } from '../types';
 
 interface NavbarProps {
@@ -44,6 +44,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const schoolAddress = config?.alamat_sekolah || (config?.npsn ? `NPSN: ${config.npsn}` : 'NPSN: 50101123');
   const academicYear = config?.tahun_ajaran || '2026/2027';
   const activeSemester = config?.semester_aktif || 'Ganjil';
+  const isAdmin = currentUser?.role === 'admin';
 
   const handleToggle = () => {
     if (setSidebarOpen) {
@@ -80,8 +81,25 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
 
-        {/* Right Side: Date, Live Mode Badge & Quick Action */}
+        {/* Right Side: Role Badge, Date, Live Mode Badge & Quick Action */}
         <div className="flex items-center gap-2 sm:gap-3">
+          {/* Role Badge */}
+          <div
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border shadow-2xs ${
+              isAdmin
+                ? 'bg-amber-50 text-amber-800 border-amber-300'
+                : 'bg-teal-50 text-teal-800 border-teal-300'
+            }`}
+            title={`Login sebagai: ${currentUser?.nama_guru || 'Pengguna'} (${currentUser?.role?.toUpperCase()})`}
+          >
+            {isAdmin ? (
+              <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
+            ) : (
+              <GraduationCap className="w-3.5 h-3.5 text-teal-600" />
+            )}
+            <span>{isAdmin ? 'Admin' : 'Guru'}</span>
+          </div>
+
           {/* Date Tag */}
           <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100/80 text-xs font-medium text-slate-600">
             <Calendar className="w-3.5 h-3.5 text-teal-600" />
@@ -94,37 +112,55 @@ export const Navbar: React.FC<NavbarProps> = ({
             className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
               isGasConnected
                 ? 'bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100'
-                : 'bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100'
+                : 'bg-slate-50 border-slate-300 text-slate-700 hover:bg-slate-100'
             }`}
             title="Klik untuk konfigurasi Google Apps Script Web App & Sheets"
           >
             <Database className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">
-              {isGasConnected ? 'GAS Terhubung' : 'Lokal / Setup GAS'}
+              {isGasConnected ? 'GAS Terhubung' : 'Lokal / GAS'}
             </span>
           </button>
 
-          {/* Quick Action: Absensi Shortcut */}
-          {activeTab !== 'absensi' && (
-            <button
-              onClick={() => setActiveTab('absensi')}
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-xs font-medium shadow-xs transition-colors"
-            >
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>Isi Absensi</span>
-            </button>
+          {/* Quick Action: Master Data / Absensi based on role */}
+          {isAdmin ? (
+            activeTab !== 'master_data' && (
+              <button
+                onClick={() => setActiveTab('master_data')}
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium shadow-xs transition-colors"
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Kelola Data & Akun</span>
+              </button>
+            )
+          ) : (
+            activeTab !== 'absensi' && (
+              <button
+                onClick={() => setActiveTab('absensi')}
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-xs font-medium shadow-xs transition-colors"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>Isi Absensi</span>
+              </button>
+            )
           )}
 
           {/* Avatar Profile Trigger */}
           <button
             onClick={() => setActiveTab('profil_guru')}
             className="flex items-center gap-2 p-1 rounded-full hover:ring-2 hover:ring-teal-500/30 transition-all"
-            title="Profil Guru"
+            title="Profil Pengguna"
           >
             <img
-              src={guruProfile?.foto_profil_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'}
+              src={
+                isAdmin
+                  ? 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80'
+                  : guruProfile?.foto_profil_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'
+              }
               alt="Profil"
-              className="w-8 h-8 rounded-full object-cover border border-slate-200"
+              className={`w-8 h-8 rounded-full object-cover border ${
+                isAdmin ? 'border-amber-400' : 'border-teal-500'
+              }`}
             />
           </button>
         </div>

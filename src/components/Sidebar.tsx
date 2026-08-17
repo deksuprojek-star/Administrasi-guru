@@ -176,15 +176,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="flex items-center gap-2">
             <span
               className={`w-2.5 h-2.5 rounded-full ${
-                isGasConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'
+                isGasConnected ? 'bg-emerald-400 animate-pulse' : 'bg-teal-400'
               }`}
             />
             <span className="font-medium text-slate-300">
-              {isGasConnected ? 'GAS Web App Live' : 'Database Lokal (Demo)'}
+              {isGasConnected ? 'GAS Web App Live' : 'Database Lokal Aktif'}
             </span>
           </div>
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-700 text-slate-300">
-            {isGasConnected ? 'Online' : 'Offline'}
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-700 text-slate-300 font-medium">
+            {isGasConnected ? 'Online' : 'Lokal'}
           </span>
         </div>
 
@@ -232,22 +232,43 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2.5 min-w-0">
               <img
-                src={guruProfile?.foto_profil_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80'}
-                alt="Foto Guru"
-                className="w-9 h-9 rounded-full object-cover border border-teal-500 shrink-0"
+                src={
+                  currentUser?.role === 'admin'
+                    ? 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80'
+                    : guruProfile?.foto_profil_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80'
+                }
+                alt="Foto Profil"
+                className={`w-9 h-9 rounded-full object-cover border shrink-0 ${
+                  currentUser?.role === 'admin' ? 'border-amber-400' : 'border-teal-500'
+                }`}
               />
               <div className="min-w-0">
-                <p className="text-xs font-semibold text-white truncate">
-                  {guruProfile?.nama_lengkap || currentUser?.nama_guru || 'Drs. Hendra Gunawan, M.Pd.'}
-                </p>
-                <p className="text-[11px] text-slate-400 truncate">
-                  {guruProfile?.mata_pelajaran || 'Matematika'}
-                </p>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-xs font-semibold text-white truncate">
+                    {currentUser?.nama_guru || guruProfile?.nama_lengkap || 'Pengguna Sistem'}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1 mt-0.5">
+                  {currentUser?.role === 'admin' ? (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 tracking-wider">
+                      <ShieldCheck className="w-2.5 h-2.5" />
+                      ADMIN
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-teal-500/20 text-teal-300 border border-teal-500/30 tracking-wider">
+                      <GraduationCap className="w-2.5 h-2.5" />
+                      GURU
+                    </span>
+                  )}
+                  <span className="text-[10px] text-slate-400 truncate">
+                    {currentUser?.role === 'admin' ? 'Admin Sekolah' : (guruProfile?.mata_pelajaran || 'Pengajar')}
+                  </span>
+                </div>
               </div>
             </div>
             <button
               onClick={onLogout}
-              title="Keluar"
+              title="Keluar dari Akun"
               className="p-2 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-colors shrink-0"
             >
               <LogOut className="w-4 h-4" />

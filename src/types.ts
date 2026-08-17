@@ -18,9 +18,14 @@ export interface GuruProfile {
 export interface UserAccount {
   user_id: string;
   username: string;
+  password?: string;
   guru_id: string;
   role: 'guru' | 'admin';
   nama_guru: string;
+  nip?: string;
+  email?: string;
+  status_aktif?: boolean;
+  created_at?: string;
 }
 
 export interface Kelas {

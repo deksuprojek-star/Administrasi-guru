@@ -30,13 +30,46 @@ export const initialGuruProfile: GuruProfile = {
   telepon: '0812-3456-7890',
 };
 
-export const initialUserAccount: UserAccount = {
-  user_id: 'USR-001',
-  username: 'guru',
-  guru_id: 'GURU-001',
-  role: 'guru',
-  nama_guru: 'Drs. Hendra Gunawan, M.Pd.',
-};
+export const initialUserAccounts: UserAccount[] = [
+  {
+    user_id: 'USR-ADMIN-01',
+    username: 'admin',
+    password: 'admin123',
+    guru_id: 'GURU-ADMIN',
+    role: 'admin',
+    nama_guru: 'Administrator Sistem',
+    nip: '19720415 199802 1 004',
+    email: 'admin@sman1tabanan.sch.id',
+    status_aktif: true,
+    created_at: '2026-08-01T00:00:00.000Z',
+  },
+  {
+    user_id: 'USR-GURU-01',
+    username: 'guru',
+    password: 'guru123',
+    guru_id: 'GURU-001',
+    role: 'guru',
+    nama_guru: 'Drs. Hendra Gunawan, M.Pd.',
+    nip: '19820514 200801 1 009',
+    email: 'hendra.gunawan@sekolah.sch.id',
+    status_aktif: true,
+    created_at: '2026-08-01T00:00:00.000Z',
+  },
+  {
+    user_id: 'USR-GURU-02',
+    username: '198503122010012015',
+    password: 'guru123',
+    guru_id: 'GURU-002',
+    role: 'guru',
+    nama_guru: 'Ni Made Ayu Wulandari, S.Pd.',
+    nip: '19850312 201001 2 015',
+    email: 'ayu.wulandari@sekolah.sch.id',
+    status_aktif: true,
+    created_at: '2026-08-01T00:00:00.000Z',
+  },
+];
+
+export const initialUserAccount: UserAccount = initialUserAccounts[1];
 
 export const initialKonfigurasiSekolah: KonfigurasiSekolah = {
   nama_sekolah: 'SMA NEGERI 1 TABANAN',

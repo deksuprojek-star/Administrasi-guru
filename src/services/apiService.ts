@@ -21,6 +21,7 @@ import {
 import {
   initialGuruProfile,
   initialUserAccount,
+  initialUserAccounts,
   initialKonfigurasiSekolah,
   initialKelasList,
   initialMapelList,
@@ -37,6 +38,7 @@ const STORAGE_KEYS = {
   GAS_URL: 'SAG_GAS_WEBAPP_URL',
   GURU: 'SAG_GURU_PROFILE',
   USER: 'SAG_USER_ACCOUNT',
+  USERS: 'SAG_USERS_LIST',
   CONFIG: 'SAG_CONFIG_SEKOLAH',
   KELAS: 'SAG_MASTER_KELAS',
   MAPEL: 'SAG_MASTER_MAPEL',
@@ -123,6 +125,9 @@ class ApiService {
     if (!localStorage.getItem(STORAGE_KEYS.GURU)) {
       localStorage.setItem(STORAGE_KEYS.GURU, JSON.stringify(initialGuruProfile));
     }
+    if (!localStorage.getItem(STORAGE_KEYS.USERS)) {
+      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(initialUserAccounts));
+    }
     if (!localStorage.getItem(STORAGE_KEYS.CONFIG)) {
       localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(initialKonfigurasiSekolah));
     }
@@ -178,10 +183,11 @@ class ApiService {
     status: 'SUCCESS' | 'FAILED' | 'WARNING' = 'SUCCESS'
   ): Promise<void> {
     const userProfile = await this.getGuruProfile();
+    const currentUser = this.getCurrentUser();
     const newLog: LogAktivitas = {
       log_id: 'LOG-' + Math.random().toString(36).substring(2, 9).toUpperCase(),
       timestamp: new Date().toISOString(),
-      user: userProfile?.nama_lengkap || 'Guru',
+      user: currentUser?.nama_guru || userProfile?.nama_lengkap || 'Pengguna',
       action,
       module,
       record_id: recordId,
@@ -199,46 +205,136 @@ class ApiService {
     return JSON.parse(localStorage.getItem(STORAGE_KEYS.LOGS) || '[]');
   }
 
-  // --- AUTH ---
+  // --- AUTH & USER MANAGEMENT ---
+  public async getUserList(): Promise<UserAccount[]> {
+    const raw = localStorage.getItem(STORAGE_KEYS.USERS);
+    if (!raw) {
+      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(initialUserAccounts));
+      return initialUserAccounts;
+    }
+    return JSON.parse(raw);
+  }
+
+  public async saveUser(user: UserAccount): Promise<ApiResponse> {
+    const users = await this.getUserList();
+    const existingIndex = users.findIndex((u) => u.user_id === user.user_id || u.username.toLowerCase() === user.username.toLowerCase());
+    
+    if (existingIndex >= 0 && users[existingIndex].user_id !== user.user_id) {
+      return { success: false, message: `Username "${user.username}" sudah digunakan oleh akun lain.` };
+    }
+
+    if (existingIndex >= 0) {
+      users[existingIndex] = { ...users[existingIndex], ...user };
+    } else {
+      users.push({
+        ...user,
+        user_id: user.user_id || 'USR-' + Math.random().toString(36).substring(2, 8).toUpperCase(),
+        created_at: user.created_at || new Date().toISOString(),
+        status_aktif: user.status_aktif !== false,
+      });
+    }
+
+    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+    this.addLog('SAVE_USER', 'AUTH', `Menyimpan akun pengguna: ${user.nama_guru} (${user.role.toUpperCase()})`, user.user_id);
+    return { success: true, message: `Akun ${user.nama_guru} (${user.role}) berhasil disimpan!` };
+  }
+
+  public async deleteUser(userId: string): Promise<ApiResponse> {
+    const currentUser = this.getCurrentUser();
+    if (currentUser?.user_id === userId) {
+      return { success: false, message: 'Anda tidak dapat menghapus akun yang sedang aktif digunakan.' };
+    }
+
+    const users = await this.getUserList();
+    const target = users.find((u) => u.user_id === userId);
+    const filtered = users.filter((u) => u.user_id !== userId);
+
+    if (filtered.length === users.length) {
+      return { success: false, message: 'Akun pengguna tidak ditemukan.' };
+    }
+
+    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(filtered));
+    this.addLog('DELETE_USER', 'AUTH', `Menghapus akun pengguna: ${target?.nama_guru || userId}`, userId);
+    return { success: true, message: 'Akun pengguna berhasil dihapus!' };
+  }
+
+  public async resetUserPassword(userId: string, newPass: string): Promise<ApiResponse> {
+    const users = await this.getUserList();
+    const user = users.find((u) => u.user_id === userId);
+    if (!user) {
+      return { success: false, message: 'Akun tidak ditemukan.' };
+    }
+    user.password = newPass;
+    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+    this.addLog('RESET_PASSWORD', 'AUTH', `Reset kata sandi untuk akun: ${user.nama_guru}`, userId);
+    return { success: true, message: `Kata sandi untuk ${user.nama_guru} berhasil diperbarui!` };
+  }
+
   public async login(username: string, password: string): Promise<ApiResponse<UserAccount>> {
-    await new Promise((r) => setTimeout(r, 400));
+    await new Promise((r) => setTimeout(r, 350));
+    const cleanUsername = username.trim();
+    const cleanPassword = password.trim();
+
+    if (!cleanUsername || !cleanPassword) {
+      return { success: false, message: 'Silakan isi username dan kata sandi.' };
+    }
+
     if (this.isOnlineGasMode()) {
       try {
-        const res = await this.callGas('login', { username, password });
-        if (res.success) {
+        const res = await this.callGas('login', { username: cleanUsername, password: cleanPassword });
+        if (res.success && res.data) {
           localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(res.data));
-          this.addLog('LOGIN', 'AUTH', 'Login berhasil via Google Apps Script');
+          this.addLog('LOGIN', 'AUTH', `Login online berhasil via Google Apps Script sebagai ${res.data.role?.toUpperCase()}`);
+          return res;
         }
-        return res;
       } catch (err: any) {
         console.warn('Fallback to local auth due to GAS error:', err);
       }
     }
 
-    // Local authentication
-    if (
-      (username === 'guru' || username === 'admin' || username === 'hendra') &&
-      (password === 'guru123' || password === 'admin123' || password === '123456')
-    ) {
-      const user: UserAccount = {
-        user_id: 'USR-001',
-        username: username,
-        guru_id: 'GURU-001',
-        role: username === 'admin' ? 'admin' : 'guru',
-        nama_guru: 'Drs. Hendra Gunawan, M.Pd.',
+    // Verify against saved accounts
+    const users = await this.getUserList();
+    const matchedUser = users.find(
+      (u) =>
+        (u.username.toLowerCase() === cleanUsername.toLowerCase() || (u.nip && u.nip.replace(/\s+/g, '') === cleanUsername.replace(/\s+/g, ''))) &&
+        (u.password === cleanPassword || (!u.password && cleanPassword === 'guru123'))
+    );
+
+    if (matchedUser) {
+      if (matchedUser.status_aktif === false) {
+        return { success: false, message: 'Akun ini sedang dinonaktifkan. Hubungi administrator.' };
+      }
+
+      // Safe user object for session
+      const sessionUser: UserAccount = {
+        user_id: matchedUser.user_id,
+        username: matchedUser.username,
+        guru_id: matchedUser.guru_id,
+        role: matchedUser.role,
+        nama_guru: matchedUser.nama_guru,
+        nip: matchedUser.nip,
+        email: matchedUser.email,
       };
-      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
-      this.addLog('LOGIN', 'AUTH', 'Login berhasil ke sesi lokal');
-      return { success: true, message: 'Login berhasil! Selamat datang.', data: user };
+
+      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(sessionUser));
+      this.addLog('LOGIN', 'AUTH', `Login berhasil sebagai ${matchedUser.role.toUpperCase()} (${matchedUser.nama_guru})`);
+      return {
+        success: true,
+        message: `Selamat datang, ${matchedUser.nama_guru}! Role aktif: ${matchedUser.role.toUpperCase()}`,
+        data: sessionUser,
+      };
     }
 
-    this.addLog('LOGIN_FAILED', 'AUTH', `Percobaan login gagal untuk username: ${username}`, undefined, 'FAILED');
-    return { success: false, message: 'Username atau kata sandi tidak valid. Coba: guru / guru123' };
+    this.addLog('LOGIN_FAILED', 'AUTH', `Percobaan login gagal untuk username: ${cleanUsername}`, undefined, 'FAILED');
+    return {
+      success: false,
+      message: 'Username atau kata sandi tidak valid. Pastikan data yang dimasukkan benar.',
+    };
   }
 
   public getCurrentUser(): UserAccount | null {
     const raw = localStorage.getItem(STORAGE_KEYS.USER);
-    return raw ? JSON.parse(raw) : initialUserAccount;
+    return raw ? JSON.parse(raw) : null;
   }
 
   public logout(): void {
@@ -615,6 +711,7 @@ class ApiService {
       version: '1.0.0',
       exported_at: new Date().toISOString(),
       guru: await this.getGuruProfile(),
+      users: await this.getUserList(),
       config: await this.getConfig(),
       kelas: await this.getKelasList(),
       mapel: await this.getMapelList(),
@@ -638,6 +735,7 @@ class ApiService {
     try {
       const data = JSON.parse(jsonString);
       if (data.guru) localStorage.setItem(STORAGE_KEYS.GURU, JSON.stringify(data.guru));
+      if (data.users) localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(data.users));
       if (data.config) localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(data.config));
       if (data.kelas) localStorage.setItem(STORAGE_KEYS.KELAS, JSON.stringify(data.kelas));
       if (data.mapel) localStorage.setItem(STORAGE_KEYS.MAPEL, JSON.stringify(data.mapel));
