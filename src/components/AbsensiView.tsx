@@ -39,6 +39,7 @@ const BULAN_NAMES = [
 
 export const AbsensiView: React.FC = () => {
   const [kelasList, setKelasList] = useState<Kelas[]>([]);
+  const [isTeacherFiltered, setIsTeacherFiltered] = useState<boolean>(false);
   const [selectedKelasId, setSelectedKelasId] = useState<string>('');
   const [selectedTanggal, setSelectedTanggal] = useState<string>(
     new Date().toISOString().split('T')[0]
@@ -67,10 +68,11 @@ export const AbsensiView: React.FC = () => {
   }, []);
 
   const loadClasses = async () => {
-    const classes = await apiService.getKelasList();
+    const { classes, isFiltered } = await apiService.getTeacherTaughtClasses();
     setKelasList(classes);
+    setIsTeacherFiltered(isFiltered);
     if (classes.length > 0) {
-      setSelectedKelasId(classes[0].kelas_id);
+      setSelectedKelasId((prev) => (classes.some((c) => c.kelas_id === prev) ? prev : classes[0].kelas_id));
     }
   };
 
@@ -331,10 +333,17 @@ export const AbsensiView: React.FC = () => {
 
               {/* Kelas */}
               <div>
-                <label className="block font-semibold text-slate-700 mb-1.5 flex items-center gap-1">
-                  <School className="w-3.5 h-3.5 text-teal-600" />
-                  <span>Pilih Rombongan Belajar (Kelas) *</span>
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block font-semibold text-slate-700 flex items-center gap-1">
+                    <School className="w-3.5 h-3.5 text-teal-600" />
+                    <span>Pilih Rombongan Belajar (Kelas) *</span>
+                  </label>
+                  {isTeacherFiltered && (
+                    <span className="text-[10px] font-bold text-teal-700 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded-full">
+                      Kelas Diampu ({kelasList.length})
+                    </span>
+                  )}
+                </div>
                 <select
                   value={selectedKelasId}
                   onChange={(e) => setSelectedKelasId(e.target.value)}

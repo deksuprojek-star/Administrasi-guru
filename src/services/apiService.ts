@@ -509,6 +509,52 @@ class ApiService {
     }));
   }
 
+  /**
+   * Mengambil daftar kelas khusus yang diampu oleh akun guru yang sedang login.
+   * Jika user adalah admin, akan mengembalikan semua kelas di sekolah.
+   */
+  public async getTeacherTaughtClasses(): Promise<{
+    classes: Kelas[];
+    isFiltered: boolean;
+    totalAllClasses: number;
+    guruName?: string;
+  }> {
+    const currentUser = this.getCurrentUser();
+    const allClasses = await this.getKelasList();
+
+    if (!currentUser || currentUser.role === 'admin') {
+      return {
+        classes: allClasses,
+        isFiltered: false,
+        totalAllClasses: allClasses.length,
+      };
+    }
+
+    // Role Guru
+    const profile = await this.getGuruProfile();
+    const diampu = profile.kelas_diampu || currentUser.kelas_diampu || [];
+
+    if (!diampu || diampu.length === 0) {
+      return {
+        classes: allClasses,
+        isFiltered: false,
+        totalAllClasses: allClasses.length,
+        guruName: profile.nama_lengkap,
+      };
+    }
+
+    const filtered = allClasses.filter(
+      (k) => diampu.includes(k.kelas_id) || diampu.includes(k.nama_kelas)
+    );
+
+    return {
+      classes: filtered.length > 0 ? filtered : allClasses,
+      isFiltered: filtered.length > 0,
+      totalAllClasses: allClasses.length,
+      guruName: profile.nama_lengkap,
+    };
+  }
+
   public async saveKelas(kelas: Kelas): Promise<ApiResponse> {
     const list = await this.getKelasList();
     
@@ -588,6 +634,22 @@ class ApiService {
     };
 
     await this.saveKelas(newKelas);
+
+    // If current logged-in user is a teacher, auto-assign this class to their kelas_diampu
+    const currentUser = this.getCurrentUser();
+    if (currentUser && currentUser.role === 'guru') {
+      try {
+        const profile = await this.getGuruProfile();
+        const currentDiampu = profile.kelas_diampu || [];
+        if (!currentDiampu.includes(newKelas.kelas_id) && !currentDiampu.includes(newKelas.nama_kelas)) {
+          profile.kelas_diampu = [...currentDiampu, newKelas.kelas_id];
+          await this.saveGuruProfile(profile);
+        }
+      } catch (e) {
+        console.warn('Could not auto-assign class to teacher profile:', e);
+      }
+    }
+
     return newKelas;
   }
 
