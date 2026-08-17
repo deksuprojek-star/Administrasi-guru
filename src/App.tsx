@@ -127,6 +127,7 @@ export default function App() {
           {activeTab === 'dashboard' && (
             <DashboardView
               guruProfile={guruProfile}
+              currentUser={currentUser}
               setActiveTab={setActiveTab}
               onSelectJadwalForPbm={(j) => setSelectedKbmJadwal(j)}
             />

@@ -124,6 +124,21 @@ class ApiService {
   }
 
   private initLocalStorage() {
+    const CLEAN_VERSION_KEY = 'SAG_CLEAN_DATA_STATE_V3';
+    if (!localStorage.getItem(CLEAN_VERSION_KEY)) {
+      // Clear legacy dummy transaction records so tables are clean and ready for real use
+      localStorage.setItem(STORAGE_KEYS.ABSENSI, JSON.stringify([]));
+      localStorage.setItem(STORAGE_KEYS.JURNAL, JSON.stringify([]));
+      localStorage.setItem(STORAGE_KEYS.PENILAIAN, JSON.stringify([]));
+      localStorage.setItem(STORAGE_KEYS.BIMBINGAN, JSON.stringify([]));
+      localStorage.setItem(STORAGE_KEYS.LOGS, JSON.stringify([]));
+      localStorage.setItem(STORAGE_KEYS.KELAS, JSON.stringify(initialKelasList));
+      localStorage.setItem(STORAGE_KEYS.MAPEL, JSON.stringify(initialMapelList));
+      localStorage.setItem(STORAGE_KEYS.SISWA, JSON.stringify(initialSiswaList));
+      localStorage.setItem(STORAGE_KEYS.JADWAL, JSON.stringify(initialJadwalList));
+      localStorage.setItem(CLEAN_VERSION_KEY, 'true');
+    }
+
     if (!localStorage.getItem(STORAGE_KEYS.GURU)) {
       localStorage.setItem(STORAGE_KEYS.GURU, JSON.stringify(initialGuruProfile));
     }

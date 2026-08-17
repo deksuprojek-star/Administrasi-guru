@@ -155,16 +155,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <p className="text-[11px] text-teal-400 font-semibold truncate">
                 {config?.nama_sekolah || 'SMA Negeri 1 Tabanan'}
               </p>
-              {/* Tombol Link Ubah Logo */}
-              <button
-                type="button"
-                onClick={handleOpenLogoModal}
-                className="mt-0.5 text-[10px] text-slate-400 hover:text-teal-300 flex items-center gap-1 font-medium transition-colors"
-                title="Klik untuk mengubah logo sekolah"
-              >
-                <ImageIcon className="w-2.5 h-2.5 text-teal-400" />
-                <span>Ubah Logo</span>
-              </button>
             </div>
           </div>
           <button

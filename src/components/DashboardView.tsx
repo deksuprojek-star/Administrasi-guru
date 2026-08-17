@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import {
   GuruProfile,
+  UserAccount,
   Kelas,
   Siswa,
   JadwalMengajar,
@@ -33,12 +34,14 @@ import { apiService } from '../services/apiService';
 
 interface DashboardViewProps {
   guruProfile: GuruProfile | null;
+  currentUser?: UserAccount | null;
   setActiveTab: (tab: ActiveTab) => void;
   onSelectJadwalForPbm?: (jadwal: JadwalMengajar) => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
   guruProfile,
+  currentUser,
   setActiveTab,
   onSelectJadwalForPbm,
 }) => {
@@ -94,6 +97,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const totalHadir = absensiList.filter((a) => a.status === 'Hadir').length;
   const persentaseHadir = totalAbsen > 0 ? Math.round((totalHadir / totalAbsen) * 100) : 100;
 
+  // User Display Name
+  const displayName =
+    currentUser?.nama_guru ||
+    currentUser?.username ||
+    guruProfile?.nama_lengkap ||
+    'Pengguna';
+
   return (
     <div className="space-y-6">
       {/* Welcome Banner */}
@@ -103,12 +113,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <Sparkles className="w-3.5 h-3.5 text-teal-300 shrink-0" />
             <span className="truncate">Sistem Administrasi Guru SMA Negeri 1 Tabanan</span>
           </div>
-          <h1 className="text-lg sm:text-xl md:text-2xl font-bold tracking-tight text-white mb-1.5 truncate" title={`Selamat Datang, ${guruProfile?.nama_lengkap || 'Drs. Hendra Gunawan, M.Pd.'}`}>
-            Selamat Datang, {guruProfile?.nama_lengkap || 'Drs. Hendra Gunawan, M.Pd.'}
+          <h1 className="text-lg sm:text-xl md:text-2xl font-bold tracking-tight text-white mb-1.5 truncate" title={`Selamat Datang, ${displayName}`}>
+            Selamat Datang, {displayName}
           </h1>
           <p className="text-xs sm:text-sm text-teal-100/90 leading-relaxed truncate">
-            {guruProfile?.jabatan || 'Guru Ahli Madya / Guru Pembimbing'} • Mata Pelajaran{' '}
-            <span className="font-semibold text-white">{guruProfile?.mata_pelajaran || 'Matematika'}</span>
+            {currentUser?.role === 'admin' ? (
+              <span className="text-teal-100 font-medium">Administrator Sistem • Hak Akses Manajemen Penuh</span>
+            ) : (
+              <>
+                {guruProfile?.jabatan || 'Guru Pengajar'} • Mata Pelajaran{' '}
+                <span className="font-semibold text-white">{guruProfile?.mata_pelajaran || 'Matematika'}</span>
+              </>
+            )}
           </p>
         </div>
         <div className="absolute right-0 bottom-0 opacity-10 translate-x-8 translate-y-8 pointer-events-none">
@@ -309,14 +325,25 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <div className="text-[11px] text-slate-500">Rekap & Cetak PDF</div>
               </button>
 
-              <button
-                onClick={() => setActiveTab('gas_hub')}
-                className="p-3 rounded-lg border border-slate-200 hover:border-teal-400 hover:bg-teal-50/40 text-left transition-all group"
-              >
-                <School className="w-5 h-5 text-emerald-600 mb-1 group-hover:scale-110 transition-transform" />
-                <div className="text-xs font-semibold text-slate-800">Google Hub</div>
-                <div className="text-[11px] text-slate-500">Apps Script & DB</div>
-              </button>
+              {currentUser?.role === 'admin' ? (
+                <button
+                  onClick={() => setActiveTab('gas_hub')}
+                  className="p-3 rounded-lg border border-slate-200 hover:border-teal-400 hover:bg-teal-50/40 text-left transition-all group"
+                >
+                  <School className="w-5 h-5 text-emerald-600 mb-1 group-hover:scale-110 transition-transform" />
+                  <div className="text-xs font-semibold text-slate-800">Google Hub</div>
+                  <div className="text-[11px] text-slate-500">Apps Script & DB</div>
+                </button>
+              ) : (
+                <button
+                  onClick={() => setActiveTab('profil_guru')}
+                  className="p-3 rounded-lg border border-slate-200 hover:border-teal-400 hover:bg-teal-50/40 text-left transition-all group"
+                >
+                  <Users className="w-5 h-5 text-teal-600 mb-1 group-hover:scale-110 transition-transform" />
+                  <div className="text-xs font-semibold text-slate-800">Profil Guru</div>
+                  <div className="text-[11px] text-slate-500">Biodata & Tugas PBM</div>
+                </button>
+              )}
             </div>
           </div>
 

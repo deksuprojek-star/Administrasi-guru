@@ -147,7 +147,7 @@ export const ProfilGuruView: React.FC<ProfilGuruViewProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200">
         <div>
           <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <span>Profil Guru & Tenaga Pendidik</span>
+            <span>Profil Guru</span>
             {isAdmin ? (
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-300">
                 <ShieldCheck className="w-3.5 h-3.5" />
