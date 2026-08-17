@@ -124,7 +124,7 @@ class ApiService {
   }
 
   private initLocalStorage() {
-    const CLEAN_VERSION_KEY = 'SAG_CLEAN_DATA_STATE_V3';
+    const CLEAN_VERSION_KEY = 'SAG_CLEAN_DATA_STATE_V4';
     if (!localStorage.getItem(CLEAN_VERSION_KEY)) {
       // Clear legacy dummy transaction records so tables are clean and ready for real use
       localStorage.setItem(STORAGE_KEYS.ABSENSI, JSON.stringify([]));
@@ -136,6 +136,23 @@ class ApiService {
       localStorage.setItem(STORAGE_KEYS.MAPEL, JSON.stringify(initialMapelList));
       localStorage.setItem(STORAGE_KEYS.SISWA, JSON.stringify(initialSiswaList));
       localStorage.setItem(STORAGE_KEYS.JADWAL, JSON.stringify(initialJadwalList));
+      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(initialUserAccounts));
+      localStorage.setItem(STORAGE_KEYS.GURU_PROFILES, JSON.stringify(initialGuruProfiles));
+      localStorage.setItem(STORAGE_KEYS.GURU, JSON.stringify(initialGuruProfile));
+
+      // If active session was one of the removed dummy teachers, reset session to admin
+      const activeSession = localStorage.getItem(STORAGE_KEYS.USER);
+      if (activeSession) {
+        try {
+          const parsed = JSON.parse(activeSession);
+          if (parsed.username !== 'admin') {
+            localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(initialUserAccounts[0]));
+          }
+        } catch (e) {
+          localStorage.removeItem(STORAGE_KEYS.USER);
+        }
+      }
+
       localStorage.setItem(CLEAN_VERSION_KEY, 'true');
     }
 
@@ -243,20 +260,57 @@ class ApiService {
       return { success: false, message: `Username "${user.username}" sudah digunakan oleh akun lain.` };
     }
 
+    const assignedGuruId = user.guru_id || (existingIndex >= 0 ? users[existingIndex].guru_id : 'GURU-' + Math.random().toString(36).substring(2, 7).toUpperCase());
+
+    const updatedUser: UserAccount = {
+      ...user,
+      guru_id: assignedGuruId,
+      user_id: user.user_id || (existingIndex >= 0 ? users[existingIndex].user_id : 'USR-' + Math.random().toString(36).substring(2, 8).toUpperCase()),
+      created_at: user.created_at || (existingIndex >= 0 ? users[existingIndex].created_at : new Date().toISOString()),
+      status_aktif: user.status_aktif !== false,
+    };
+
     if (existingIndex >= 0) {
-      users[existingIndex] = { ...users[existingIndex], ...user };
+      users[existingIndex] = updatedUser;
     } else {
-      users.push({
-        ...user,
-        user_id: user.user_id || 'USR-' + Math.random().toString(36).substring(2, 8).toUpperCase(),
-        created_at: user.created_at || new Date().toISOString(),
-        status_aktif: user.status_aktif !== false,
-      });
+      users.push(updatedUser);
     }
 
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
-    this.addLog('SAVE_USER', 'AUTH', `Menyimpan akun pengguna: ${user.nama_guru} (${user.role.toUpperCase()})`, user.user_id);
-    return { success: true, message: `Akun ${user.nama_guru} (${user.role}) berhasil disimpan!` };
+
+    // Synchronize corresponding GuruProfile
+    const profiles = await this.getGuruProfileList();
+    const profileIdx = profiles.findIndex((p) => p.guru_id === assignedGuruId || (user.nip && p.nip === user.nip));
+    
+    const guruProfileData: GuruProfile = {
+      guru_id: assignedGuruId,
+      nama_lengkap: user.nama_guru,
+      nip: user.nip || '',
+      pangkat_golongan: (user as any).pangkat_golongan || (user.role === 'admin' ? 'Pembina Utama Muda / IV c' : 'Penata / III c'),
+      jabatan: (user as any).jabatan || (user.role === 'admin' ? 'Administrator Sistem' : 'Guru Pengajar'),
+      mata_pelajaran: (user as any).mata_pelajaran || (user.role === 'admin' ? 'Teknologi Informasi' : 'Matematika'),
+      foto_profil_url: (user as any).foto_profil_url || '',
+      email: user.email || '',
+      telepon: (user as any).telepon || '',
+      kelas_diampu: user.kelas_diampu || [],
+    };
+
+    if (profileIdx >= 0) {
+      profiles[profileIdx] = { ...profiles[profileIdx], ...guruProfileData };
+    } else {
+      profiles.push(guruProfileData);
+    }
+    localStorage.setItem(STORAGE_KEYS.GURU_PROFILES, JSON.stringify(profiles));
+
+    // If current session is this user, update session
+    const currentSession = this.getCurrentUser();
+    if (currentSession && currentSession.user_id === updatedUser.user_id) {
+      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(updatedUser));
+      localStorage.setItem(STORAGE_KEYS.GURU, JSON.stringify(guruProfileData));
+    }
+
+    this.addLog('SAVE_USER', 'AUTH', `Menyimpan akun pengguna: ${user.nama_guru} (${user.role.toUpperCase()})`, updatedUser.user_id);
+    return { success: true, message: `Akun ${user.nama_guru} (${user.role === 'admin' ? 'Administrator' : 'Guru'}) berhasil disimpan!` };
   }
 
   public async deleteUser(userId: string): Promise<ApiResponse> {
@@ -274,6 +328,13 @@ class ApiService {
     }
 
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(filtered));
+
+    // Also remove from profiles if exists
+    if (target?.guru_id) {
+      const profiles = (await this.getGuruProfileList()).filter((p) => p.guru_id !== target.guru_id);
+      localStorage.setItem(STORAGE_KEYS.GURU_PROFILES, JSON.stringify(profiles));
+    }
+
     this.addLog('DELETE_USER', 'AUTH', `Menghapus akun pengguna: ${target?.nama_guru || userId}`, userId);
     return { success: true, message: 'Akun pengguna berhasil dihapus!' };
   }
@@ -375,22 +436,38 @@ class ApiService {
 
   public async getGuruProfile(guruIdOrNip?: string): Promise<GuruProfile> {
     const profiles = await this.getGuruProfileList();
+    const currentUser = this.getCurrentUser();
+
     if (guruIdOrNip) {
       const found = profiles.find(
-        (p) => p.guru_id === guruIdOrNip || p.nip === guruIdOrNip || p.nama_lengkap.toLowerCase() === guruIdOrNip.toLowerCase()
+        (p) => p.guru_id === guruIdOrNip || (p.nip && p.nip === guruIdOrNip) || p.nama_lengkap.toLowerCase() === guruIdOrNip.toLowerCase()
       );
       if (found) return found;
     }
 
-    const currentUser = this.getCurrentUser();
     if (currentUser?.guru_id || currentUser?.nip || currentUser?.nama_guru) {
       const found = profiles.find(
         (p) =>
           (currentUser.guru_id && p.guru_id === currentUser.guru_id) ||
           (currentUser.nip && p.nip === currentUser.nip) ||
-          (currentUser.nama_guru && p.nama_lengkap.toLowerCase().includes(currentUser.nama_guru.toLowerCase()))
+          (currentUser.nama_guru && p.nama_lengkap.toLowerCase() === currentUser.nama_guru.toLowerCase())
       );
       if (found) return found;
+    }
+
+    if (currentUser) {
+      return {
+        guru_id: currentUser.guru_id || 'GURU-' + currentUser.user_id,
+        nama_lengkap: currentUser.nama_guru || currentUser.username,
+        nip: currentUser.nip || '-',
+        pangkat_golongan: currentUser.role === 'admin' ? 'Pembina Utama Muda / IV c' : 'Penata / III c',
+        jabatan: currentUser.role === 'admin' ? 'Administrator Sistem' : 'Guru Pengajar',
+        mata_pelajaran: currentUser.role === 'admin' ? 'Teknologi Informasi' : 'Matematika',
+        foto_profil_url: '',
+        email: currentUser.email || '',
+        telepon: '',
+        kelas_diampu: currentUser.kelas_diampu || [],
+      };
     }
 
     const raw = localStorage.getItem(STORAGE_KEYS.GURU);

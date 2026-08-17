@@ -19,68 +19,19 @@ import {
 } from '../types';
 
 export const initialGuruProfile: GuruProfile = {
-  guru_id: 'GURU-001',
-  nama_lengkap: 'Drs. Hendra Gunawan, M.Pd.',
-  nip: '19820514 200801 1 009',
-  pangkat_golongan: 'Pembina / IV a',
-  jabatan: 'Guru Ahli Madya / Guru Pembimbing',
-  mata_pelajaran: 'Matematika',
-  foto_profil_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80',
-  email: 'hendra.gunawan@sekolah.sch.id',
-  telepon: '0812-3456-7890',
-  kelas_diampu: ['KLS-7A', 'KLS-7B'],
+  guru_id: 'GURU-ADMIN',
+  nama_lengkap: 'Administrator Sistem',
+  nip: '19720415 199802 1 004',
+  pangkat_golongan: 'Pembina Utama Muda / IV c',
+  jabatan: 'Administrator Sistem & TI',
+  mata_pelajaran: 'Teknologi Informasi',
+  foto_profil_url: '',
+  email: 'admin@sman1tabanan.sch.id',
+  telepon: '(0361) 811234',
+  kelas_diampu: [],
 };
 
-export const initialGuruProfiles: GuruProfile[] = [
-  {
-    guru_id: 'GURU-001',
-    nama_lengkap: 'Drs. Hendra Gunawan, M.Pd.',
-    nip: '19820514 200801 1 009',
-    pangkat_golongan: 'Pembina / IV a',
-    jabatan: 'Guru Ahli Madya / Guru Pembimbing',
-    mata_pelajaran: 'Matematika',
-    foto_profil_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80',
-    email: 'hendra.gunawan@sekolah.sch.id',
-    telepon: '0812-3456-7890',
-    kelas_diampu: ['KLS-7A', 'KLS-7B'],
-  },
-  {
-    guru_id: 'GURU-002',
-    nama_lengkap: 'Ni Made Ayu Wulandari, S.Pd.',
-    nip: '19850312 201001 2 015',
-    pangkat_golongan: 'Penata Tk. I / III d',
-    jabatan: 'Guru Ahli Muda / Wali Kelas VIII A',
-    mata_pelajaran: 'Bahasa Indonesia',
-    foto_profil_url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&auto=format&fit=crop&q=80',
-    email: 'ayu.wulandari@sekolah.sch.id',
-    telepon: '0813-9876-5432',
-    kelas_diampu: ['KLS-8A', 'KLS-8B'],
-  },
-  {
-    guru_id: 'GURU-003',
-    nama_lengkap: 'I Wayan Sudarma, S.Kom.',
-    nip: '19880720 201402 1 003',
-    pangkat_golongan: 'Penata / III c',
-    jabatan: 'Guru Ahli Muda / Pembina OSIS',
-    mata_pelajaran: 'Informatika',
-    foto_profil_url: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&auto=format&fit=crop&q=80',
-    email: 'wayan.sudarma@sekolah.sch.id',
-    telepon: '0819-1234-5678',
-    kelas_diampu: ['KLS-7A', 'KLS-8A', 'KLS-9A'],
-  },
-  {
-    guru_id: 'GURU-004',
-    nama_lengkap: 'Dr. I Gusti Bagus Arya, M.Si.',
-    nip: '19790610 200501 1 008',
-    pangkat_golongan: 'Pembina Utama Muda / IV c',
-    jabatan: 'Guru Ahli Utama / Wakasek Kurikulum',
-    mata_pelajaran: 'Fisika',
-    foto_profil_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&auto=format&fit=crop&q=80',
-    email: 'gusti.arya@sekolah.sch.id',
-    telepon: '0812-7788-9900',
-    kelas_diampu: ['KLS-9A', 'KLS-9B'],
-  },
-];
+export const initialGuruProfiles: GuruProfile[] = [initialGuruProfile];
 
 export const initialUserAccounts: UserAccount[] = [
   {
@@ -95,35 +46,9 @@ export const initialUserAccounts: UserAccount[] = [
     status_aktif: true,
     created_at: '2026-08-01T00:00:00.000Z',
   },
-  {
-    user_id: 'USR-GURU-01',
-    username: 'guru',
-    password: 'guru123',
-    guru_id: 'GURU-001',
-    role: 'guru',
-    nama_guru: 'Drs. Hendra Gunawan, M.Pd.',
-    nip: '19820514 200801 1 009',
-    email: 'hendra.gunawan@sekolah.sch.id',
-    status_aktif: true,
-    created_at: '2026-08-01T00:00:00.000Z',
-    kelas_diampu: ['KLS-7A', 'KLS-7B'],
-  },
-  {
-    user_id: 'USR-GURU-02',
-    username: '198503122010012015',
-    password: 'guru123',
-    guru_id: 'GURU-002',
-    role: 'guru',
-    nama_guru: 'Ni Made Ayu Wulandari, S.Pd.',
-    nip: '19850312 201001 2 015',
-    email: 'ayu.wulandari@sekolah.sch.id',
-    status_aktif: true,
-    created_at: '2026-08-01T00:00:00.000Z',
-    kelas_diampu: ['KLS-8A', 'KLS-8B'],
-  },
 ];
 
-export const initialUserAccount: UserAccount = initialUserAccounts[1];
+export const initialUserAccount: UserAccount = initialUserAccounts[0];
 
 export const initialKonfigurasiSekolah: KonfigurasiSekolah = {
   nama_sekolah: 'SMA NEGERI 1 TABANAN',
@@ -213,52 +138,7 @@ export const initialMapelList: MataPelajaran[] = [
 
 export const initialSiswaList: Siswa[] = [];
 
-export const initialJadwalList: JadwalMengajar[] = [
-  {
-    jadwal_id: 'JDW-01',
-    hari: 'Senin',
-    mapel_id: 'MP-01',
-    nama_mapel: 'Matematika',
-    jam_ke: '1,2,3',
-    kelas_id: 'KLS-10A',
-    nama_kelas: 'X A',
-    guru_id: 'GURU-001',
-    ruang: 'R. X-A',
-  },
-  {
-    jadwal_id: 'JDW-02',
-    hari: 'Senin',
-    mapel_id: 'MP-01',
-    nama_mapel: 'Matematika',
-    jam_ke: '5,6,7',
-    kelas_id: 'KLS-10B',
-    nama_kelas: 'X B',
-    guru_id: 'GURU-001',
-    ruang: 'R. X-B',
-  },
-  {
-    jadwal_id: 'JDW-03',
-    hari: 'Selasa',
-    mapel_id: 'MP-01',
-    nama_mapel: 'Matematika',
-    jam_ke: '1,2,3',
-    kelas_id: 'KLS-11A',
-    nama_kelas: 'XI A',
-    guru_id: 'GURU-001',
-    ruang: 'R. XI-A',
-  },
-  {
-    jadwal_id: 'JDW-04',
-    hari: 'Kamis',
-    mapel_id: 'MP-01',
-    nama_mapel: 'Matematika',
-    jam_ke: '1,2,3',
-    kelas_id: 'KLS-12A',
-    nama_kelas: 'XII A',
-    guru_id: 'GURU-001',
-    ruang: 'R. XII-A',
-  },
-];
+export const initialJadwalList: JadwalMengajar[] = [];
 
 export const initialAbsensiList: AbsensiRecord[] = [];
 

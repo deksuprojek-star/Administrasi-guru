@@ -136,14 +136,14 @@ export default function App() {
           {activeTab === 'profil_guru' && (
             <ProfilGuruView
               guruProfile={guruProfile || {
-                guru_id: currentUser?.guru_id || 'GURU-001',
-                nama_lengkap: currentUser?.nama_guru || 'Drs. Hendra Gunawan, M.Pd.',
-                nip: currentUser?.nip || '19820514 200801 1 009',
-                pangkat_golongan: 'Pembina / IV a',
-                jabatan: 'Guru Ahli Madya / Guru Pembimbing',
-                mata_pelajaran: 'Matematika',
-                email: currentUser?.email || 'hendra.gunawan@sekolah.sch.id',
-                telepon: '0812-3456-7890',
+                guru_id: currentUser?.guru_id || 'GURU-ADMIN',
+                nama_lengkap: currentUser?.nama_guru || 'Administrator Sistem',
+                nip: currentUser?.nip || '19720415 199802 1 004',
+                pangkat_golongan: currentUser?.role === 'admin' ? 'Pembina Utama Muda / IV c' : 'Penata / III c',
+                jabatan: currentUser?.role === 'admin' ? 'Administrator Sistem & TI' : 'Guru Pengajar',
+                mata_pelajaran: currentUser?.role === 'admin' ? 'Teknologi Informasi' : 'Matematika',
+                email: currentUser?.email || 'admin@sman1tabanan.sch.id',
+                telepon: '',
                 foto_profil_url: '',
               }}
               currentUser={currentUser}

@@ -30,6 +30,9 @@ import { apiService } from '../services/apiService';
 
 export const MasterDataView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'siswa' | 'kelas' | 'mapel' | 'pengguna'>('siswa');
+  const currentUser = apiService.getCurrentUser();
+  const isAdmin = currentUser?.role === 'admin';
+
   const [kelasList, setKelasList] = useState<Kelas[]>([]);
   const [mapelList, setMapelList] = useState<MataPelajaran[]>([]);
   const [siswaList, setSiswaList] = useState<Siswa[]>([]);
@@ -72,13 +75,16 @@ export const MasterDataView: React.FC = () => {
   // Modal State for User Accounts & Roles
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserAccount | null>(null);
-  const [userForm, setUserForm] = useState<Partial<UserAccount>>({
+  const [userForm, setUserForm] = useState<Partial<UserAccount & { mata_pelajaran?: string; jabatan?: string; telepon?: string }>>({
     username: '',
     password: '',
     nama_guru: '',
     role: 'guru',
     nip: '',
     email: '',
+    mata_pelajaran: 'Matematika',
+    jabatan: 'Guru Pengajar',
+    telepon: '',
     status_aktif: true,
   });
 
@@ -122,8 +128,12 @@ export const MasterDataView: React.FC = () => {
     setTimeout(() => setNotification(null), 4000);
   };
 
-  // --- USER ACCOUNT HANDLERS ---
+  // --- USER ACCOUNT HANDLERS (ADMIN ONLY) ---
   const handleOpenAddUser = () => {
+    if (!isAdmin) {
+      showToast('Hanya Administrator yang memiliki wewenang menambahkan data akun guru atau admin.', 'error');
+      return;
+    }
     setEditingUser(null);
     setUserForm({
       username: '',
@@ -132,20 +142,31 @@ export const MasterDataView: React.FC = () => {
       role: 'guru',
       nip: '',
       email: '',
+      mata_pelajaran: mapelList[0]?.nama_mapel || 'Matematika',
+      jabatan: 'Guru Pengajar',
+      telepon: '',
       status_aktif: true,
     });
     setIsUserModalOpen(true);
   };
 
   const handleOpenEditUser = (user: UserAccount) => {
+    if (!isAdmin) {
+      showToast('Hanya Administrator yang memiliki wewenang mengedit data akun pengguna.', 'error');
+      return;
+    }
     setEditingUser(user);
     setUserForm({
       user_id: user.user_id,
+      guru_id: user.guru_id,
       username: user.username,
       nama_guru: user.nama_guru,
       role: user.role,
       nip: user.nip || '',
       email: user.email || '',
+      mata_pelajaran: (user as any).mata_pelajaran || 'Matematika',
+      jabatan: (user as any).jabatan || (user.role === 'admin' ? 'Administrator Sistem' : 'Guru Pengajar'),
+      telepon: (user as any).telepon || '',
       status_aktif: user.status_aktif !== false,
     });
     setIsUserModalOpen(true);
@@ -153,6 +174,11 @@ export const MasterDataView: React.FC = () => {
 
   const handleSaveUser = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isAdmin) {
+      showToast('Hanya Administrator yang memiliki wewenang menyimpan akun pengguna.', 'error');
+      return;
+    }
+
     if (!userForm.username || !userForm.nama_guru || !userForm.role) {
       showToast('Username, Nama Lengkap, dan Role wajib diisi', 'error');
       return;
@@ -163,7 +189,7 @@ export const MasterDataView: React.FC = () => {
       return;
     }
 
-    const payload: UserAccount = {
+    const payload: any = {
       user_id: editingUser?.user_id || 'USR-' + Math.random().toString(36).substring(2, 8).toUpperCase(),
       username: userForm.username.trim(),
       password: userForm.password ? userForm.password.trim() : editingUser?.password || 'guru123',
@@ -172,6 +198,9 @@ export const MasterDataView: React.FC = () => {
       nama_guru: userForm.nama_guru.trim(),
       nip: userForm.nip?.trim(),
       email: userForm.email?.trim(),
+      mata_pelajaran: userForm.mata_pelajaran || (userForm.role === 'admin' ? 'Teknologi Informasi' : 'Matematika'),
+      jabatan: userForm.jabatan || (userForm.role === 'admin' ? 'Administrator Sistem' : 'Guru Pengajar'),
+      telepon: userForm.telepon?.trim() || '',
       status_aktif: userForm.status_aktif !== false,
       created_at: editingUser?.created_at || new Date().toISOString(),
     };
@@ -187,6 +216,11 @@ export const MasterDataView: React.FC = () => {
   };
 
   const handleDeleteUser = async (user: UserAccount) => {
+    if (!isAdmin) {
+      showToast('Hanya Administrator yang berwenang menghapus akun.', 'error');
+      return;
+    }
+
     if (confirm(`Yakin ingin menghapus akun ${user.nama_guru} (${user.role.toUpperCase()})?`)) {
       const res = await apiService.deleteUser(user.user_id);
       if (res.success) {
@@ -199,6 +233,10 @@ export const MasterDataView: React.FC = () => {
   };
 
   const handleOpenResetPassword = (user: UserAccount) => {
+    if (!isAdmin) {
+      showToast('Hanya Administrator yang berwenang mereset kata sandi akun.', 'error');
+      return;
+    }
     setTargetResetUser(user);
     setNewPasswordInput('');
     setIsResetPasswordModalOpen(true);
@@ -206,6 +244,11 @@ export const MasterDataView: React.FC = () => {
 
   const handleSaveResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isAdmin) {
+      showToast('Hanya Administrator yang berwenang mereset kata sandi akun.', 'error');
+      return;
+    }
+
     if (!targetResetUser || !newPasswordInput.trim()) {
       showToast('Masukkan kata sandi baru', 'error');
       return;
@@ -781,15 +824,17 @@ export const MasterDataView: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex items-center gap-2 w-full md:w-auto justify-end">
-              <button
-                onClick={handleOpenAddUser}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Tambah Akun Pengguna</span>
-              </button>
-            </div>
+            {isAdmin && (
+              <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+                <button
+                  onClick={handleOpenAddUser}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Tambah Akun Pengguna</span>
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Role Summary Badges */}
@@ -838,7 +883,7 @@ export const MasterDataView: React.FC = () => {
                     <th className="py-3 px-4">Role Sistem</th>
                     <th className="py-3 px-4">Email / Kontak</th>
                     <th className="py-3 px-4 text-center">Status</th>
-                    <th className="py-3 px-4 text-right">Aksi</th>
+                    {isAdmin && <th className="py-3 px-4 text-right">Aksi</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -853,14 +898,14 @@ export const MasterDataView: React.FC = () => {
                       );
                     })
                     .map((user) => {
-                      const isAdmin = user.role === 'admin';
+                      const isRowAdmin = user.role === 'admin';
                       return (
                         <tr key={user.user_id} className="hover:bg-slate-50/80 transition-colors">
                           <td className="py-3 px-4 font-medium text-slate-900">
                             <div className="flex items-center gap-2.5">
                               <div
                                 className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${
-                                  isAdmin
+                                  isRowAdmin
                                     ? 'bg-amber-100 text-amber-800 border border-amber-300'
                                     : 'bg-teal-100 text-teal-800 border border-teal-300'
                                 }`}
@@ -880,7 +925,7 @@ export const MasterDataView: React.FC = () => {
                             )}
                           </td>
                           <td className="py-3 px-4">
-                            {isAdmin ? (
+                            {isRowAdmin ? (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
                                 <ShieldCheck className="w-3 h-3 text-amber-700" />
                                 Administrator
@@ -912,31 +957,33 @@ export const MasterDataView: React.FC = () => {
                               </span>
                             )}
                           </td>
-                          <td className="py-3 px-4 text-right">
-                            <div className="flex items-center justify-end gap-1.5">
-                              <button
-                                onClick={() => handleOpenResetPassword(user)}
-                                className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                                title="Reset Kata Sandi"
-                              >
-                                <KeyRound className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handleOpenEditUser(user)}
-                                className="p-1.5 text-slate-500 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
-                                title="Edit Akun"
-                              >
-                                <Edit2 className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteUser(user)}
-                                className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                                title="Hapus Akun"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </td>
+                          {isAdmin && (
+                            <td className="py-3 px-4 text-right">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  onClick={() => handleOpenResetPassword(user)}
+                                  className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                                  title="Reset Kata Sandi"
+                                >
+                                  <KeyRound className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleOpenEditUser(user)}
+                                  className="p-1.5 text-slate-500 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
+                                  title="Edit Akun"
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteUser(user)}
+                                  className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                                  title="Hapus Akun"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          )}
                         </tr>
                       );
                     })}
@@ -1310,15 +1357,80 @@ export const MasterDataView: React.FC = () => {
                 </div>
               )}
 
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Email (Opsional)</label>
-                <input
-                  type="email"
-                  value={userForm.email || ''}
-                  onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
-                  placeholder="sukerti@sekolah.sch.id"
-                  className="w-full px-3 py-2 border rounded-lg"
-                />
+              {userForm.role === 'guru' && (
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Mata Pelajaran Diampu</label>
+                    <select
+                      value={userForm.mata_pelajaran}
+                      onChange={(e) => setUserForm({ ...userForm, mata_pelajaran: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-lg bg-white"
+                    >
+                      {mapelList.map((m) => (
+                        <option key={m.mapel_id} value={m.nama_mapel}>
+                          {m.nama_mapel} ({m.kode_mapel})
+                        </option>
+                      ))}
+                      <option value="Matematika">Matematika</option>
+                      <option value="Bahasa Indonesia">Bahasa Indonesia</option>
+                      <option value="Bahasa Inggris">Bahasa Inggris</option>
+                      <option value="Informatika">Informatika</option>
+                      <option value="IPA (Fisika/Biologi/Kimia)">IPA (Fisika/Biologi/Kimia)</option>
+                      <option value="IPS (Sejarah/Geografi/Ekonomi/Sosiologi)">IPS (Sejarah/Geografi/Ekonomi/Sosiologi)</option>
+                      <option value="Pendidikan Pancasila">Pendidikan Pancasila</option>
+                      <option value="Pendidikan Agama & Budi Pekerti">Pendidikan Agama & Budi Pekerti</option>
+                      <option value="PJOK">PJOK</option>
+                      <option value="Seni Budaya">Seni Budaya</option>
+                      <option value="Bimbingan Konseling (BK)">Bimbingan Konseling (BK)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Jabatan / Tugas</label>
+                    <input
+                      type="text"
+                      value={userForm.jabatan || ''}
+                      onChange={(e) => setUserForm({ ...userForm, jabatan: e.target.value })}
+                      placeholder="Guru Pengajar / Wali Kelas"
+                      className="w-full px-3 py-2 border rounded-lg"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {userForm.role === 'admin' && (
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Jabatan Administrator</label>
+                  <input
+                    type="text"
+                    value={userForm.jabatan || ''}
+                    onChange={(e) => setUserForm({ ...userForm, jabatan: e.target.value })}
+                    placeholder="Administrator Sistem & TI"
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={userForm.email || ''}
+                    onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
+                    placeholder="nama@sman1tabanan.sch.id"
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">No. HP / WhatsApp</label>
+                  <input
+                    type="text"
+                    value={userForm.telepon || ''}
+                    onChange={(e) => setUserForm({ ...userForm, telepon: e.target.value })}
+                    placeholder="0812-xxxx-xxxx"
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
+                </div>
               </div>
 
               <div className="flex justify-end gap-2 pt-3 border-t">

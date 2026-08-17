@@ -164,20 +164,28 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Avatar Profile Trigger */}
           <button
             onClick={() => setActiveTab('profil_guru')}
-            className="flex items-center gap-2 p-1 rounded-full hover:ring-2 hover:ring-teal-500/30 transition-all"
-            title="Profil Pengguna"
+            className="flex items-center gap-2 p-0.5 rounded-full hover:ring-2 hover:ring-teal-500/30 transition-all"
+            title={`Profil: ${currentUser?.nama_guru || 'Pengguna'}`}
           >
-            <img
-              src={
-                isAdmin
-                  ? 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80'
-                  : guruProfile?.foto_profil_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'
-              }
-              alt="Profil"
-              className={`w-8 h-8 rounded-full object-cover border ${
-                isAdmin ? 'border-amber-400' : 'border-teal-500'
-              }`}
-            />
+            {guruProfile?.foto_profil_url ? (
+              <img
+                src={guruProfile.foto_profil_url}
+                alt="Profil"
+                className={`w-8 h-8 rounded-full object-cover border ${
+                  isAdmin ? 'border-amber-400' : 'border-teal-500'
+                }`}
+              />
+            ) : (
+              <div
+                className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs border ${
+                  isAdmin
+                    ? 'bg-amber-100 text-amber-800 border-amber-300'
+                    : 'bg-teal-100 text-teal-800 border-teal-300'
+                }`}
+              >
+                {(currentUser?.nama_guru || (isAdmin ? 'A' : 'G')).charAt(0).toUpperCase()}
+              </div>
+            )}
           </button>
         </div>
       </div>
